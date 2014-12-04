@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name       KTXP&dmhyTorrentLinkToMagnet
 // @namespace  http://KTXP&dmhyTorrentLinkToMagnet/
-// @version    2.0
+// @version    2.1
 // @description  在极影首页以及搜索页添加一个的绿底白箭头，链接为该资源的磁链；在动漫花园把蓝箭头的链接换成磁链。
 // @match      http://bt.ktxp.com/*
-// @match	   http://share.dmhy.org
-// @match	   http://share.dmhy.org/topics/list*
+// @match	   *://share.dmhy.org
+// @match	   *://share.dmhy.org/topics/list*
 // @license        GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
 // @copyright  2014.01.17, JMNSY
 // ==/UserScript==
