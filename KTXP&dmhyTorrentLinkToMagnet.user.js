@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name       KTXP&dmhyTorrentLinkToMagnet
 // @namespace  http://KTXP&dmhyTorrentLinkToMagnet/
-// @version    2.2
+// @version    2.3
 // @description  在极影首页以及搜索页添加一个的绿底白箭头，链接为该资源的磁链；在动漫花园把蓝箭头的链接换成磁链。
-// @match      http://bt.ktxp.com/*
+// @match      http://bt.ktxp.com/search.php*
 // @match	   *://share.dmhy.org
 // @match	   *://share.dmhy.org/topics/list*
 // @license        GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
@@ -28,9 +28,9 @@ jQuery().ready(function(){
         torrent = words[words.length - 1];
         hash = torrent.split(".")[0];
         magnet = "magnet:?xt=urn:btih:" + hash;
-//      if(switchy == 1)
-//          jQuery(this).before(temp.attr("href",magnet));
-//      else
+        if(switchy == 1)
+            jQuery(this).before(temp.attr("href",magnet));
+        else
             jQuery(this).attr("href",magnet);
     });
 });
