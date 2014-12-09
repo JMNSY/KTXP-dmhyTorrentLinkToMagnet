@@ -28,9 +28,9 @@ jQuery().ready(function(){
         torrent = words[words.length - 1];
         hash = torrent.split(".")[0];
         magnet = "magnet:?xt=urn:btih:" + hash;
-        if(switchy == 1)
+//      if(switchy == 1)
 //          jQuery(this).before(temp.attr("href",magnet));
-        else
+//      else
             jQuery(this).attr("href",magnet);
     });
 });
