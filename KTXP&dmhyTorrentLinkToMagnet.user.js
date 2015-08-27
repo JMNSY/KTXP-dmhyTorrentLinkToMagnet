@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name       KTXP&dmhyTorrentLinkToMagnet
 // @namespace  http://KTXP&dmhyTorrentLinkToMagnet/
-// @version    2.6
+// @version    2.7
 // @description  将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外两个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为bt.acg.gg或www.miobt.com跟极影有任何关系，只是受众有重叠
 // @match      http://bt.acg.gg/*
 // @match      http://www.miobt.com/*
+// @match      http://miobt.com/*
 // @match      https://share.dmhy.org/*
 // @match      http://share.dmhy.org/*
 // @require    http://code.jquery.com/jquery-1.9.0.min.js
@@ -20,17 +21,17 @@ jQuery().ready(function(){
         link = jQuery(".quick-down");
         switchy = 1;
     }
-    if(jQuery(".download-arrow[title='磁力下載']").length > 0){
+    else if(jQuery(".download-arrow[title='磁力下載']").length > 0){
         link = jQuery(".download-arrow[title='磁力下載']");
         switchy = 0;
     }
-    if(jQuery(".clear > table#listTable > tbody.tbody > tr[class^='alt'] > td > a[href^='show']").length > 0){
+    else if(jQuery(".clear > table#listTable > tbody.tbody > tr[class^='alt'] > td > a[href^='show']").length > 0){
         link = jQuery(".clear > table#listTable > tbody.tbody > tr[class^='alt'] > td > a[href^='show']");
         var thisurl = window.location.href
         if(/http[s]?:\/\/bt.acg.gg\/.*/.test(thisurl)){
             switchy = 2;
         }
-        else if(/http[s]?:\/\/www.miobt.com\/.*/.test(thisurl)){
+        else if(/http[s]?:\/\/(www.)?miobt.com\/.*/.test(thisurl)){
             switchy = 3;
         }
     }
