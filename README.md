@@ -7,7 +7,7 @@ JavaScript用户脚本
 
 使用户能从多个BT资源站点中获取到16位编码的磁链（使之能加入各种离线任务）
 
-目前支持：
+目前支持：<br/>
 1.share.dmhy.org
 
 2.share.popgo.org
