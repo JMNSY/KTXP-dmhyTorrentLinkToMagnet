@@ -153,6 +153,7 @@ jQuery().ready(function(){
         var checkall = jQuery("<input/>",{type:"checkbox",id:"checkAll"});
         jQuery("span.title").eq(3).before(checkall).parent();//href中的换行会被无视，另找出路
         jQuery("#checkAll").on("change",checkAll);
+        jQuery(".checkMagnet").on("change",checkThis);
     }
     //花园资源页
     if(/http[s]?:\/\/share\.dmhy\.org\/topics\/view\/.*/.test(thisurl)){
@@ -200,6 +201,14 @@ function checkAll(){
             jQuery(this).get(0).click()
         }
     });
+}
+function checkThis(){
+    if(jQuery(this).get(0).checked == false){
+        jQuery("#checkAll").get(0).checked=false;
+    }
+    else if(jQuery(this).get(0).checked == true && jQuery(".checkMagnet:checked").length == jQuery(".checkMagnet").length){
+        jQuery("#checkAll").get(0).checked=true;
+    }
 }
 function convertToBase16(base32){
     var hex = "0123456789ABCDEF";
