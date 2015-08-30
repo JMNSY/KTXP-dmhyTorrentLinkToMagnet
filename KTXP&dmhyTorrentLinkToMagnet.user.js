@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       KTXP&dmhyTorrentLinkToMagnet
 // @namespace  http://KTXP&dmhyTorrentLinkToMagnet/
-// @version    2.8
+// @version    2.9
 // @description  将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外两个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为bt.acg.gg或www.miobt.com跟极影有任何关系，只是受众有重叠
 // @match      http://bt.acg.gg/*
 // @match      http://www.miobt.com/*
@@ -11,14 +11,17 @@
 // @match      http://share.popgo.org/*
 // @match      https://share.popgo.org/*
 // @require    http://code.jquery.com/jquery-1.9.0.min.js
+// @grant      GM_setClipboard
 // @license    GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
 // @copyright  2014.01.17, JMNSY
 // ==/UserScript==
 
 jQuery().ready(function(){
     jQuery.noConflict();
+    var isShowTorrent = true;
     var link;
     var switchy;
+    var copyimg = "data:image/gif;base64,R0lGODlhMwA2APcAAP//////zP//mf//Zv//M///AP/M///MzP/Mmf/MZv/MM//MAP+Z//+ZzP+Zmf+ZZv+ZM/+ZAP9m//9mzP9mmf9mZv9mM/9mAP8z//8zzP8zmf8zZv8zM/8zAP8A//8AzP8Amf8AZv8AM/8AAMz//8z/zMz/mcz/Zsz/M8z/AMzM/8zMzMzMmczMZszMM8zMAMyZ/8yZzMyZmcyZZsyZM8yZAMxm/8xmzMxmmcxmZsxmM8xmAMwz/8wzzMwzmcwzZswzM8wzAMwA/8wAzMwAmcwAZswAM8wAAJn//5n/zJn/mZn/Zpn/M5n/AJnM/5nMzJnMmZnMZpnMM5nMAJmZ/5mZzJmZmZmZZpmZM5mZAJlm/5lmzJlmmZlmZplmM5lmAJkz/5kzzJkzmZkzZpkzM5kzAJkA/5kAzJkAmZkAZpkAM5kAAGb//2b/zGb/mWb/Zmb/M2b/AGbM/2bMzGbMmWbMZmbMM2bMAGaZ/2aZzGaZmWaZZmaZM2aZAGZm/2ZmzGZmmWZmZmZmM2ZmAGYz/2YzzGYzmWYzZmYzM2YzAGYA/2YAzGYAmWYAZmYAM2YAADP//zP/zDP/mTP/ZjP/MzP/ADPM/zPMzDPMmTPMZjPMMzPMADOZ/zOZzDOZmTOZZjOZMzOZADNm/zNmzDNmmTNmZjNmMzNmADMz/zMzzDMzmTMzZjMzMzMzADMA/zMAzDMAmTMAZjMAMzMAAAD//wD/zAD/mQD/ZgD/MwD/AADM/wDMzADMmQDMZgDMMwDMAACZ/wCZzACZmQCZZgCZMwCZAABm/wBmzABmmQBmZgBmMwBmAAAz/wAzzAAzmQAzZgAzMwAzAAAA/wAAzAAAmQAAZgAAMwAAAKSkpJWVlYSEhH19fXx8fFlZWUpKSi8vLx8fHxUVFQgICKampp2dnZeXl5KSko2NjX9/f3l5eXJycmtra1paWlJSUk1NTUlJSUVFRUBAQDc3Ny4uLisrKyYmJh4eHhYWFhQUFBISEg4ODgsLCwkJCQYGBgICAv///yH5BAEAAP8ALAAAAAAzADYAAAj/AP8JHEhwYDd91xIqXMiwoUOF/NwVnEgw3MOLGB/uQ0ex4L2MIENe29dxYLqF76xgW8mypcuXLseRa+dPYbeS/+IpPIezZ89+Ce3hZJWQns+jHeElxIdTHTx4PJFKHYguYbipWJFqs5q1K86t1656HVsQrNh/geTN+8a2rdu3cON+mxdPXUmzAvOJ3NuwXke8CPkKVuh3otl2Cvt5S7eNm+PHkCNLhrxNnbyFUQma1XvNH0eyHdcpbGfYqriE8EDjBJfwXemwp69lVj0R8TVvr8PFLke7I7uEuMuaTpitN8VuwHPHLm68IPLbyok3d55cOGzp0w1W1zz8GvPs/54H7Od+3Tt4geKjmz+f3rpu7ODbk3+/Pv72gWaXnw9/X2B++NnJh1933wXY3z//1WcgdO7px96BCRY4nYD+EbgfhQha+CCD8zloH4cDlidhcxhGeOGBJ4l4IogCEXUNPh4uOJ5AKV5TT4wTtkYVPQupgyOJOra4kFA/Gveca0IWJVCRvR05kDrvtKPNQEzShiFBVap2JZUJ8XbebywWFNts09k240SxpXYea9cg2RFn/mwDnmgJkVaSbZ3Fw9g2fPbp55+A/qkOjwqZ01NggwlmVE/mfJToXosetQ499oBj6aWYZqrppuDYw0o6RwUEADs=";
     var thisurl = window.location.href
     //适配天国的极影列表页
     if(jQuery(".quick-down").length > 0){
@@ -28,9 +31,23 @@ jQuery().ready(function(){
     //适配花园列表页
     else if(jQuery(".download-arrow[title='磁力下載']").length > 0){
         //修改表头
-        jQuery("span.title").eq(3).text("磁鏈 種子");
+        jQuery("span.title").eq(3).parent().attr("width","6%");
+        if(isShowTorrent){
+            jQuery("span.title").eq(3).text("磁鏈 種子")
+        }
         link = jQuery(".download-arrow[title='磁力下載']");
         switchy = 0;
+        var copyIt = jQuery("<div/>",{id:"copySelectedMagnet"}).on("click",copyMagnet).css({
+            "background-image":"url(" + copyimg + ")",
+            "background-size":"contain",
+            "background-repeat":"no-repeat",
+            "padding":"15px 15px",
+            "position":"fixed",
+            "right":"5px",
+            "bottom":"90px",
+            "cursor":"pointer"
+        });
+        jQuery("body").append(copyIt);
     }
     //适配bt.acg.gg和miobt.com列表页
     else if(jQuery(".clear > table#listTable > tbody.tbody > tr[class^='alt'] > td > a[href^='show']").length > 0){
@@ -74,10 +91,13 @@ jQuery().ready(function(){
                 var torrentLink = "//dl.dmhy.org/" + date + "/" + b16.toLowerCase() + ".torrent";
                 //把种子下载链接的href置为种子链
                 temp.attr("href",torrentLink);
-                //var check = jQuery("<input/>",{type:"checkbox",class:"checkMagnet",value:magnet});
+                var check = jQuery("<input/>",{type:"checkbox",class:"checkMagnet",value:magnet});
                 //把磁链的href置为16位磁链，在磁链图标后加入种子下载图标
-                jQuery(this).attr("href",magnet).after(temp)//.after(check);
-                jQuery("span.title").eq(3).parent().attr("width","5%");
+                var magnetArrow = jQuery(this).attr("href",magnet);
+                magnetArrow.before(check);
+                if(isShowTorrent){
+                    magnetArrow.after(temp);
+                }
             }
             else if (switchy == 2){
                 //从资源页url中切出hex编码hash
@@ -129,13 +149,11 @@ jQuery().ready(function(){
             }
         });
     }
-//    if(switchy == 0 && temp != null){
-//        var checkall = jQuery("<input/>",{type:"checkbox",id:"checkAll"});
-//        temp.attr("href","#");
-//        jQuery("span.title").eq(3).after(checkall).after(temp).parent().attr("width","5%");//href中的换行会被无视，另找出路
-//        jQuery("#checkAll").on("change",checkAll);
-//        jQuery(".checkMagnet").on("change",checkThis);
-//    }
+    if(switchy == 0 && temp != null){
+        var checkall = jQuery("<input/>",{type:"checkbox",id:"checkAll"});
+        jQuery("span.title").eq(3).before(checkall).parent();//href中的换行会被无视，另找出路
+        jQuery("#checkAll").on("change",checkAll);
+    }
     //花园资源页
     if(/http[s]?:\/\/share\.dmhy\.org\/topics\/view\/.*/.test(thisurl)){
         //获取种子链中的base16编码hash
@@ -164,6 +182,25 @@ jQuery().ready(function(){
         jQuery("a.magnet").css({"background-image":"url(data:image/gif;base64,R0lGODlhHQAlAPcAAP//////zP//mf//Zv//M///AP/M///MzP/Mmf/MZv/MM//MAP+Z//+ZzP+Zmf+ZZv+ZM/+ZAP9m//9mzP9mmf9mZv9mM/9mAP8z//8zzP8zmf8zZv8zM/8zAP8A//8AzP8Amf8AZv8AM/8AAMz//8z/zMz/mcz/Zsz/M8z/AMzM/8zMzMzMmczMZszMM8zMAMyZ/8yZzMyZmcyZZsyZM8yZAMxm/8xmzMxmmcxmZsxmM8xmAMwz/8wzzMwzmcwzZswzM8wzAMwA/8wAzMwAmcwAZswAM8wAAJn//5n/zJn/mZn/Zpn/M5n/AJnM/5nMzJnMmZnMZpnMM5nMAJmZ/5mZzJmZmZmZZpmZM5mZAJlm/5lmzJlmmZlmZplmM5lmAJkz/5kzzJkzmZkzZpkzM5kzAJkA/5kAzJkAmZkAZpkAM5kAAGb//2b/zGb/mWb/Zmb/M2b/AGbM/2bMzGbMmWbMZmbMM2bMAGaZ/2aZzGaZmWaZZmaZM2aZAGZm/2ZmzGZmmWZmZmZmM2ZmAGYz/2YzzGYzmWYzZmYzM2YzAGYA/2YAzGYAmWYAZmYAM2YAADP//zP/zDP/mTP/ZjP/MzP/ADPM/zPMzDPMmTPMZjPMMzPMADOZ/zOZzDOZmTOZZjOZMzOZADNm/zNmzDNmmTNmZjNmMzNmADMz/zMzzDMzmTMzZjMzMzMzADMA/zMAzDMAmTMAZjMAMzMAAAD//wD/zAD/mQD/ZgD/MwD/AADM/wDMzADMmQDMZgDMMwDMAACZ/wCZzACZmQCZZgCZMwCZAABm/wBmzABmmQBmZgBmMwBmAAAz/wAzzAAzmQAzZgAzMwAzAAAA/wAAzAAAmQAAZgAAMwAAAO0cJO0dJf///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAEAANoALAAAAAAdACUAAAivAAEIHChQm8GDCA8SXMgQQMKHBhtKdAgx4cSGFS1eXJgR4UaOHSM2xEayJLZsIQ1mM8mSJcqUK1vKfBkypkyXKbXZvFmSZsedPE/mBMrTZ0aiN41WRDpzaFCTSiEybRn14VScMJ/2dKpVaNauVRNehcpVa1iEY7d+NVv26dmDaUlmezu3q9ywdWVqSxo1b0uDReeiFDz1oFu/NxPa5flwceLGjk12jJxzcU7DQTMGBAA7)","background-size":"contain","background-repeat":"no-repeat","padding-left":"15px"});
     }
 });
+function copyMagnet(){
+    var i = 0;
+    var arr = new Array();
+    jQuery(".checkMagnet:checked").each(function(){
+        arr[i] = jQuery(this).val();
+        i += 1;
+    });
+    var multiMagnet = arr.join("\r\n");
+    if(confirm("即将进行磁链多行复制操作，确认进行？")){
+        GM_setClipboard(multiMagnet);
+    }
+}
+function checkAll(){
+    jQuery(".checkMagnet").each(function(){
+        if(jQuery(this).get(0).checked != jQuery("#checkAll").get(0).checked){
+            jQuery(this).get(0).click()
+        }
+    });
+}
 function convertToBase16(base32){
     var hex = "0123456789ABCDEF";
     var strHex = "";
