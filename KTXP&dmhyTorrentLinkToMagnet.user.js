@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name             KTXP&dmhyTorrentLinkToMagnet
 // @namespace        http://KTXP&dmhyTorrentLinkToMagnet/
-// @version          2.10
+// @version          2.11
 // @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外两个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为bt.acg.gg或www.miobt.com跟极影有任何关系，只是受众有重叠
 // @match            http://bt.acg.gg/*
 // @match            http://www.miobt.com/*
@@ -12,6 +12,7 @@
 // @match            https://share.popgo.org/*
 // @require          http://code.jquery.com/jquery-1.9.0.min.js
 // @grant            GM_setClipboard
+// @grant            GM_xmlhttpRequest
 // @license          GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
 // @copyright        2014.01.17, JMNSY
 // ==/UserScript==
@@ -36,19 +37,34 @@ jQuery().ready(function(){
         }
         link = jQuery(".download-arrow[title='磁力下載']");
         switchy = 0;
-        var copyIt = jQuery("<div/>",{id:"copySelectedMagnet",title:"多行複製"}).on("click",copyMagnet).css({
-            "background":"url(" + copyimg + ") -485px -285px",
-         //   "background-size":"contain",
-            "background-repeat":"no-repeat",
-            "padding":"15px 15px",
-            "position":"fixed",
-            "right":"5px",
-            "bottom":"90px",
-            "cursor":"pointer"
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: copyimg,
+            headers: {
+                'User-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36',
+                'Accept': 'image/png',
+                'referer':'',
+            },
+            onload: function(responseDetails) {
+                var imgBin = responseDetails;
+                var base64 = customBase64Encode(responseDetails.responseText);
+                copyimg = "data:image/png;base64," + base64;
+                var copyIt = jQuery("<div/>",{id:"copySelectedMagnet",title:"多行複製"}).on("click",copyMagnet).css({
+                    "background":"url(" + copyimg + ") -485px -285px",
+                    //   "background-size":"contain",
+                    "background-repeat":"no-repeat",
+                    "padding":"15px 15px",
+                    "position":"fixed",
+                    "right":"5px",
+                    "bottom":"90px",
+                    "cursor":"pointer"
+                });
+                var addIt = copyIt.clone().css({"bottom":"195px","background":"url(" + copyimg + ") -85px -45px"}).attr({"id":"addSelectedMagnet","title":"追加磁鏈"}).on("click",addLocalStorage);
+                var clearIt = copyIt.clone().css({"bottom":"160px","background":"url(" + copyimg + ") -565px -45px"}).attr({"id":"clearMagnet","title":"清空剪貼簿"}).on("click",clearLocalStorageAndClipboard);
+                jQuery("body").append(copyIt).append(addIt).append(clearIt);
+            },
+            overrideMimeType: 'text/plain; charset=x-user-defined'
         });
-        var addIt = copyIt.clone().css({"bottom":"195px","background":"url(" + copyimg + ") -85px -45px"}).attr({"id":"addSelectedMagnet","title":"追加磁鏈"}).on("click",addLocalStorage);
-        var clearIt = copyIt.clone().css({"bottom":"160px","background":"url(" + copyimg + ") -565px -45px"}).attr({"id":"clearMagnet","title":"清空剪貼簿"}).on("click",clearLocalStorageAndClipboard);
-        jQuery("body").append(copyIt).append(addIt).append(clearIt);
     }
     //适配bt.acg.gg和miobt.com列表页
     else if(jQuery(".clear > table#listTable > tbody.tbody > tr[class^='alt'] > td > a[href^='show']").length > 0){
@@ -121,7 +137,7 @@ jQuery().ready(function(){
                 var a = jQuery("<a/>",{href:magnet,class:"magnet"});
                 jQuery(this).before(a);
             }
-            else if(switchy == 4){
+            else if(switchy == 4){z
                 //获取该行的tr元素
                 var tr = jQuery(this).parent().parent();
                 //获取该行的第一个单元格中的第一个元素，即标题图磁力下载，title为激情起步
@@ -184,7 +200,22 @@ jQuery().ready(function(){
     else if(switchy == 3){
         //我自己画的，有意见你就帮我画一个
         //对miobt.com中，由该脚本新增的链接添加样式，使链接有足够面积被点击，并以有明显意义的图标作为背景
-        jQuery("a.magnet").css({"background-image":"url(https://jmnsyscripts.sinacloud.net/magnet.gif)","background-size":"contain","background-repeat":"no-repeat","padding-left":"15px"});
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: "https://jmnsyscripts.sinacloud.net/magnet.gif",
+            headers: {
+                'User-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36',
+                'Accept': 'image/gif',
+                'referer':'',
+            },
+            onload: function(responseDetails) {
+                var imgBin = responseDetails;
+                var base64 = customBase64Encode(responseDetails.responseText);
+                var imgstr = "data:image/gif;base64," + base64;
+                jQuery("a.magnet").css({"background":"url(" + imgstr + ")","background-size":"contain","background-repeat":"no-repeat","padding-left":"15px"});
+            },
+            overrideMimeType: 'text/plain; charset=x-user-defined'
+        });
     }
 });
 function copyMagnet(){
@@ -273,4 +304,61 @@ function base32ToHex(str){
 		returnStr += b16[bin.substring(i,i+4)];
 	}
 	return returnStr;
+}
+function customBase64Encode (inputStr) {
+    var
+        bbLen               = 3,   //3字节一组
+        enCharLen           = 4,   //3字节转换成4个base64编码字符
+        inpLen              = inputStr.length,   //图片str的长度
+        
+        inx                 = 0,
+        jnx,   //字节读入时使用的下标
+        keyStr              = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+                            + "0123456789+/=",   //转换用字符串
+        output              = "",   //输出字符串
+        paddingBytes        = 0;   //决定最后一组等号的个数
+    var
+        bytebuffer          = new Array (bbLen),   //三字节一组
+        encodedCharIndexes  = new Array (enCharLen);   //转换成4字符
+    //对图片str的每一个字节
+    while (inx < inpLen) {
+        //每次把下标初始化为0，读入三个字节
+        for (jnx = 0;  jnx < bbLen;  ++jnx) {
+            
+            //以ascii读入三个字节，存储到数组中
+            if (inx < inpLen)
+                bytebuffer[jnx] = inputStr.charCodeAt (inx++) & 0xff;
+            //当图片str的长度不为3的倍数时，剩余的位数置零
+            else{
+                bytebuffer[jnx] = 0;
+                inx+=1;
+            }
+        }
+
+        //base64编码第一个字符为第一个字节右移两位
+        encodedCharIndexes[0] = bytebuffer[0] >> 2;
+        //base64编码第二个字符为第一个字节和00000011b作与运算并左移四位的结果与第二个字节右移四位的结果作并运算
+        encodedCharIndexes[1] = ( (bytebuffer[0] & 0x3) << 4)   |  (bytebuffer[1] >> 4);
+        //base64编码第三个字符为第二个字节保留右边4位并左移2位的结果与第三个字节右移6位的结果作并运算
+        encodedCharIndexes[2] = ( (bytebuffer[1] & 0x0f) << 2)  |  (bytebuffer[2] >> 6);
+        //base64编码第四个字符为第三个字节保留右边6位
+        encodedCharIndexes[3] = bytebuffer[2] & 0x3f;
+        
+        paddingBytes          = inx - inpLen;//inx - (inpLen - 1);
+        switch (paddingBytes) {
+            case 1:
+                encodedCharIndexes[3] = 64;
+                break;
+            case 2:
+                encodedCharIndexes[3] = 64;
+                encodedCharIndexes[2] = 64;
+                break;
+            default:
+                break; // No padding - proceed
+        }
+        
+        for (jnx = 0;  jnx < enCharLen;  ++jnx)
+            output += keyStr.charAt ( encodedCharIndexes[jnx] );
+    }
+    return output;
 }
