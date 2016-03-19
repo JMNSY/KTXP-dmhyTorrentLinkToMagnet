@@ -1,16 +1,15 @@
 // ==UserScript==
 // @name             KTXP&dmhyTorrentLinkToMagnet
 // @namespace        http://KTXP&dmhyTorrentLinkToMagnet/
-// @version          2.11
+// @version          2.99
 // @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外两个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为bt.acg.gg或www.miobt.com跟极影有任何关系，只是受众有重叠
 // @match            http://bt.acg.gg/*
 // @match            http://www.miobt.com/*
 // @match            http://miobt.com/*
-// @match            https://share.dmhy.org/*
-// @match            http://share.dmhy.org/*
-// @match            http://share.popgo.org/*
-// @match            https://share.popgo.org/*
+// @match            https://share.dmhy.org
+// @match            https://share.dmhy.org/topics/list*
 // @require          http://code.jquery.com/jquery-1.9.0.min.js
+// @require          https://cdnjs.cloudflare.com/ajax/libs/mousetrap/1.4.6/mousetrap.min.js
 // @grant            GM_setClipboard
 // @grant            GM_xmlhttpRequest
 // @license          GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
@@ -65,6 +64,12 @@ jQuery().ready(function(){
             },
             overrideMimeType: 'text/plain; charset=x-user-defined'
         });
+        //shift+f1追加磁链
+        Mousetrap.bind('shift+f1', addLocalStorage);
+        //shift+f2清空剪贴簿
+        Mousetrap.bind('shift+f2', clearLocalStorageAndClipboard);
+        //shift+f4多行复制
+        Mousetrap.bind('shift+f4', copyMagnet);
     }
     //适配bt.acg.gg和miobt.com列表页
     else if(jQuery(".clear > table#listTable > tbody.tbody > tr[class^='alt'] > td > a[href^='show']").length > 0){
@@ -75,11 +80,6 @@ jQuery().ready(function(){
         else if(/http[s]?:\/\/(www.)?miobt.com\/.*/.test(thisurl)){
             switchy = 3;
         }
-    }
-    //适配漫游列表页
-    else if(jQuery("#index_maintable > tbody > tr").length > 1){
-        link = jQuery("#index_maintable > tbody > tr >td>a[href^='magnet:?']");
-        switchy = 4;
     }
     //对列表页表格中的每一行
     if(link != null){
@@ -137,33 +137,6 @@ jQuery().ready(function(){
                 var a = jQuery("<a/>",{href:magnet,class:"magnet"});
                 jQuery(this).before(a);
             }
-            else if(switchy == 4){z
-                //获取该行的tr元素
-                var tr = jQuery(this).parent().parent();
-                //获取该行的第一个单元格中的第一个元素，即标题图磁力下载，title为激情起步
-                var titleimg = tr.children().eq(0).children(0).eq(0);
-                //获取上述元素的href，即hash为base32编码的磁链
-                var href = titleimg.attr("href");
-                //由于该磁链在处理前都带有tr参数，因此反而比仅含base16编码hash的磁链要长
-                //如果该行“激情XX”的href未被处理(当前元素jQuery(this)此时理论上就是“激情XX”)
-                if(href.length > 60){
-                    //切出base32编码的hash
-                    var b32 = href.substring(20,52);
-                    //对其解码，并重新编码成base16
-                    var b16 = base32ToHex(b32);
-                    //构成磁链
-                    magnet = "magnet:?xt=urn:btih:" + b16;
-                    //trace, o..不对，把标题图磁力下载的href置为hash为16位编码的磁链
-                    titleimg.attr("href",magnet);
-                    //也将当前元素的href置为hash为16位编码的磁链
-                    jQuery(this).attr("href",magnet);
-                }
-                //如果该行“激情XX”的href已被处理(当前元素jQuery(this)此时理论上是行尾的“下载”)
-                else if(href.length == 60){
-                    //直接将其置为当行“激情XX”的href
-                    jQuery(this).attr("href",href);
-                }
-            }
         });
     }
     //当前处理的页面是dmhy的情况下
@@ -185,17 +158,6 @@ jQuery().ready(function(){
         var a =  jQuery("#tabs-1 >p >a[href^='magnet']").eq(0);
         //将其文本和href均置为hash为base16编码的磁链
         a.attr("href",magnet).text(magnet);
-    }
-    //漫游资源页
-    else if(/http[s]?:\/\/share\.popgo\.org\/program-.*/.test(thisurl)){
-        //获取种子链中的base16编码hash
-        var str = jQuery("#si_downseed > a[href*='share.popgo.org/downseed.php?hash']").attr("href");
-        //构成磁链
-        magnet = "magnet:?xt=urn:btih:" + str.substring(str.lastIndexOf("=")+1);
-        //获取到磁链对应的链接元素
-        var a =  jQuery("#si_downseed >span>a").eq(0);
-        //将其href置为hash为base16编码的磁链
-        a.attr("href",magnet);
     }
     else if(switchy == 3){
         //我自己画的，有意见你就帮我画一个
@@ -344,7 +306,7 @@ function customBase64Encode (inputStr) {
         //base64编码第四个字符为第三个字节保留右边6位
         encodedCharIndexes[3] = bytebuffer[2] & 0x3f;
         
-        paddingBytes          = inx - inpLen;//inx - (inpLen - 1);
+        paddingBytes          = inx - inpLen;
         switch (paddingBytes) {
             case 1:
                 encodedCharIndexes[3] = 64;
