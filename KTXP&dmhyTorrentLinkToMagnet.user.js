@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name             KTXP&dmhyTorrentLinkToMagnet
 // @namespace        http://KTXP&dmhyTorrentLinkToMagnet/
-// @version          2.99
+// @version          2.999
 // @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外两个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为bt.acg.gg或www.miobt.com跟极影有任何关系，只是受众有重叠
 // @match            http://bt.acg.gg/*
 // @match            http://www.miobt.com/*
@@ -64,6 +64,9 @@ jQuery().ready(function(){
             },
             overrideMimeType: 'text/plain; charset=x-user-defined'
         });
+        Mousetrap.stopCallback = function () {
+            return false;
+        }
         //shift+f1追加磁链
         Mousetrap.bind('shift+f1', addLocalStorage);
         //shift+f2清空剪贴簿
