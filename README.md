@@ -14,6 +14,14 @@ JavaScript用户脚本
 5.按下快捷键shift+f2相当于点击垃圾桶链接<br/>
 6.按下快捷键shift+f4相当于点击复制链接（不使用f3的原因是f3有搜索的功能，在按下组合键之后可能会弹出搜索框）
 
+关于快捷键的设置<br/>
+快捷键由mousetrap提供支持，支持类似下列的快捷键（区分大小写）：<br/>
+1.shift+f1 按住shift的情况下，按f1<br/>
+2.a s d 按a，松开，按s，松开，按d，松开（输入时也会触发，慎用）<br/>
+3.esc 按esc键<br/>
+4.command 按command键（按其他快捷键时也可能会触发，慎用）<br/>
+5.ctrl 按ctrl键（按其他快捷键时，例如ctrl+c也可能会触发，慎用）
+
 目前支持：<br/>
 1.share.dmhy.org<br/>
 2.bt.acg.gg<br/>
