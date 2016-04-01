@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name             KTXP&dmhyTorrentLinkToMagnet
 // @namespace        http://KTXP&dmhyTorrentLinkToMagnet/
-// @version          2.999
+// @version          3.0
 // @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外两个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为bt.acg.gg或www.miobt.com跟极影有任何关系，只是受众有重叠
 // @match            http://bt.acg.gg/*
 // @match            http://www.miobt.com/*
@@ -12,16 +12,17 @@
 // @require          https://cdnjs.cloudflare.com/ajax/libs/mousetrap/1.4.6/mousetrap.min.js
 // @grant            GM_setClipboard
 // @grant            GM_xmlhttpRequest
+// @connect          jmnsy.github.io
 // @license          GPL version 3 or any later version; http://www.gnu.org/copyleft/gpl.html
 // @copyright        2014.01.17, JMNSY
 // ==/UserScript==
 jQuery().ready(function(){
     jQuery.noConflict();
-    var isShowTorrent = true;
+    var isShowTorrent = JSON.parse(getSTCheck());
     var link;
     var switchy;
-    var copyimg = "https://jmnsyscripts.sinacloud.net/black-tie-bold-2f74f123f4edd720c202dbfac55ab2a8454e5785fddb6975b2d8d1d0ebc6f45f.png";
-    var thisurl = window.location.href
+    var copyimg = "https://jmnsy.github.io/black-tie-bold-2f74f123f4edd720c202dbfac55ab2a8454e5785fddb6975b2d8d1d0ebc6f45f.png";
+    var thisurl = window.location.href;
     //适配天国的极影列表页
     if(jQuery(".quick-down").length > 0){
         link = jQuery(".quick-down");
@@ -32,47 +33,26 @@ jQuery().ready(function(){
         //修改表头
         jQuery("span.title").eq(3).parent().attr("width","6%");
         if(isShowTorrent){
-            jQuery("span.title").eq(3).text("磁鏈 種子")
+            jQuery("span.title").eq(3).text("磁鏈 種子");
         }
         link = jQuery(".download-arrow[title='磁力下載']");
+
+        var checkall = jQuery("<input/>",{type:"checkbox",id:"checkAll",title:"全選"});
+        //在表头添加全选复选框
+        jQuery("span.title").eq(3).before(checkall).parent();
+        //对全选复选框和其他复选框监听变更事件
+        jQuery("#checkAll").on("change",checkAll);
+        jQuery(".checkMagnet").on("change",checkThis);
+
         switchy = 0;
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: copyimg,
-            headers: {
-                'User-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36',
-                'Accept': 'image/png',
-                'referer':'',
-            },
-            onload: function(responseDetails) {
-                var imgBin = responseDetails;
-                var base64 = customBase64Encode(responseDetails.responseText);
-                copyimg = "data:image/png;base64," + base64;
-                var copyIt = jQuery("<div/>",{id:"copySelectedMagnet",title:"多行複製"}).on("click",copyMagnet).css({
-                    "background":"url(" + copyimg + ") -485px -285px",
-                    //   "background-size":"contain",
-                    "background-repeat":"no-repeat",
-                    "padding":"15px 15px",
-                    "position":"fixed",
-                    "right":"5px",
-                    "bottom":"90px",
-                    "cursor":"pointer"
-                });
-                var addIt = copyIt.clone().css({"bottom":"195px","background":"url(" + copyimg + ") -85px -45px"}).attr({"id":"addSelectedMagnet","title":"追加磁鏈"}).on("click",addLocalStorage);
-                var clearIt = copyIt.clone().css({"bottom":"160px","background":"url(" + copyimg + ") -565px -45px"}).attr({"id":"clearMagnet","title":"清空剪貼簿"}).on("click",clearLocalStorageAndClipboard);
-                jQuery("body").append(copyIt).append(addIt).append(clearIt);
-            },
-            overrideMimeType: 'text/plain; charset=x-user-defined'
-        });
+        requestNoReferer(copyimg,'image/png',dmhyAddOperation);
         Mousetrap.stopCallback = function () {
             return false;
-        }
-        //shift+f1追加磁链
-        Mousetrap.bind('shift+f1', addLocalStorage);
-        //shift+f2清空剪贴簿
-        Mousetrap.bind('shift+f2', clearLocalStorageAndClipboard);
-        //shift+f4多行复制
-        Mousetrap.bind('shift+f4', copyMagnet);
+        };
+        Mousetrap.bind(getAppendShortCut(), addLocalStorage);
+        Mousetrap.bind(getDeleteShortCut(), clearLocalStorageAndClipboard);
+        Mousetrap.bind(getCopyShortCut(), copyMagnet);
+        Mousetrap.bind(getSettingsShortCut(), showSettingDiv);
     }
     //适配bt.acg.gg和miobt.com列表页
     else if(jQuery(".clear > table#listTable > tbody.tbody > tr[class^='alt'] > td > a[href^='show']").length > 0){
@@ -82,6 +62,9 @@ jQuery().ready(function(){
         }
         else if(/http[s]?:\/\/(www.)?miobt.com\/.*/.test(thisurl)){
             switchy = 3;
+            //我自己画的，有意见你就帮我画一个
+            //对miobt.com中，由该脚本新增的链接添加样式，使链接有足够面积被点击，并以有明显意义的图标作为背景
+            requestNoReferer("https://jmnsy.github.io/magnet.gif",'image/gif',mioAddMagnetIcon);
         }
     }
     //对列表页表格中的每一行
@@ -101,12 +84,16 @@ jQuery().ready(function(){
                 var datetime = jQuery(this).parent().parent().children().eq(0).children().eq(0).text();
                 //获得当前资源发布日期
                 var date = datetime.substring(0,datetime.lastIndexOf(" "));
+                var tracker = str.substring(str.indexOf("&"));
                 //获得当前磁链的base32编码hash
                 var b32 = str.split("&")[0].substring(20,52);
                 //解码后编码为HEX
                 var b16 = base32ToHex(b32);
                 //构成磁链
                 magnet = "magnet:?xt=urn:btih:" + b16;//b32;//
+                if(JSON.parse(getHTCheck())){
+                    magnet = magnet + tracker;
+                }
                 //构成种子链
                 var torrentLink = "//dl.dmhy.org/" + date + "/" + b16.toLowerCase() + ".torrent";
                 //把种子下载链接的href置为种子链
@@ -142,47 +129,189 @@ jQuery().ready(function(){
             }
         });
     }
-    //当前处理的页面是dmhy的情况下
-    if(switchy == 0 && temp != null){
-        var checkall = jQuery("<input/>",{type:"checkbox",id:"checkAll",title:"全選"});
-        //在表头添加全选复选框
-        jQuery("span.title").eq(3).before(checkall).parent();
-        //对全选复选框和其他复选框监听变更事件
-        jQuery("#checkAll").on("change",checkAll);
-        jQuery(".checkMagnet").on("change",checkThis);
+});
+//dmhy站的操作图标返回后调用的回调函数
+function dmhyAddOperation(responseDetails) {
+    var imgBin = responseDetails;
+    var base64 = customBase64Encode(responseDetails.responseText);
+    copyimg = "data:image/png;base64," + base64;
+    var copyIt = jQuery("<div/>",{id:"copySelectedMagnet",title:"多行複製"}).on("click",copyMagnet).css({
+        "background":"url(" + copyimg + ") -485px -285px",
+        //   "background-size":"contain",
+        "background-repeat":"no-repeat",
+        "padding":"15px 15px",
+        "position":"fixed",
+        "right":"5px",
+        "bottom":"90px",
+        "cursor":"pointer"
+    });
+    var addIt = copyIt.clone().css({"bottom":"195px","background":"url(" + copyimg + ") -85px -45px"}).attr({"id":"addSelectedMagnet","title":"追加磁鏈"}).on("click",addLocalStorage);
+    var clearIt = copyIt.clone().css({"bottom":"160px","background":"url(" + copyimg + ") -565px -45px"}).attr({"id":"clearMagnet","title":"清空剪貼簿"}).on("click",clearLocalStorageAndClipboard);
+    var settings = copyIt.clone().css({"bottom":"55px","background":"url(" + copyimg + ") -525px -45px"}).attr({"id":"settingIcon","title":"设定"}).on("click",showSettingDiv);
+    jQuery("body").append(copyIt).append(addIt).append(clearIt).append(settings);
+}
+//显示设置
+function showSettingDiv(){
+    if(jQuery("#settingDiv").length == 0){
+        var all = jQuery("<div/>",{id:"settingDiv"}).css({
+            "background":"#FFF",
+            "width":"300px",
+            "height":"200px",
+            "position":"fixed",
+            "bottom":"20px",
+            "right":"50px"});
+        all.appendTo(jQuery("body"));
+        var title = jQuery("<div/>",{id:"settingDivTitle"}).css({
+            "background":"#247",
+            "color":"#fff",
+            "width":"290px",
+            "height":"20px",
+            "position":"fixed",
+            "bottom":"195px",
+            "right":"55px"}).text("设定").appendTo(all);
+        var main = jQuery("#settingDivTitle").clone().attr("id","settingMain").css({
+            "background":"#cdf",
+            "height":"168px",
+            "color":"#000",
+            "bottom":"25px"
+        }).text("").appendTo(all);
+        var closeIcon = jQuery("<span/>").text("(X)").css({
+            "float":"right" ,
+            "margin":"2px",
+            "color":"#fff",
+            "cursor":"pointer"})
+        .on("click",saveAndClose).appendTo(title);
+        
+        //配置項
+        var appenddiv = jQuery("<div/>",{id:"appendSC"}).css({"margin":"2px"});
+        var appendlabel = jQuery("<span/>").attr("id","appendLabel").css({"width":"65px","display":"inline-block"}).text("追加磁鏈:");
+        var appendinput = jQuery("<input/>",{id:"appendInput",type:"text"}).css("width","80px").val(getAppendShortCut());
+        appenddiv.append(appendlabel).append(appendinput).appendTo(main);     //多層元素必須一次添加
+        
+        var deletediv = jQuery("<div/>",{id:"deleteSC"}).css({"margin":"2px"});
+        var deletelabel = jQuery("<span/>").attr("id","deleteLabel").css({"width":"65px","display":"inline-block"}).text("清空剪貼簿:");
+        var deleteinput = jQuery("<input/>",{id:"deleteInput",type:"text"}).css("width","80px").val(getDeleteShortCut());
+        deletediv.append(deletelabel).append(deleteinput).appendTo(main);
+        
+        var copydiv = jQuery("<div/>",{id:"copySC"}).css({"margin":"2px"});
+        var copylabel = jQuery("#deleteLabel").clone().attr("id","copyLabel").text("多行複製");
+        var copyinput = jQuery("#deleteInput").clone().attr("id","copyInput").val(getCopyShortCut());
+        copydiv.append(copylabel).append(copyinput).appendTo(main);
+        
+        var settingsdiv = jQuery("<div/>",{id:"settingsSC"}).css({"margin":"2px"});
+        var settingslabel = jQuery("#deleteLabel").clone().attr("id","settingsLabel").text("设定");
+        var settingsinput = jQuery("#deleteInput").clone().attr("id","settingsInput").val(getSettingsShortCut());
+        settingsdiv.append(settingslabel).append(settingsinput).appendTo(main);
+        
+        var showtorrentdiv = jQuery("<div/>",{id:"showTD"}).css({"margin":"2px"});
+        var showtorrentlabel = jQuery("#deleteLabel").clone().attr("id","STLabel").css("width","80px").text("顯示種子鏈");
+        var showtorrentcheck =  jQuery("#deleteInput").clone().attr({id:"STCheck",type:"checkbox",checked:JSON.parse(getSTCheck())});
+        showtorrentdiv.append(showtorrentlabel).append(showtorrentcheck).appendTo(main);
+        
+        var hastrackerdiv = jQuery("<div/>",{id:"hasTracker"}).css({"margin":"2px"});
+        var hastrackerlabel = jQuery("#deleteLabel").clone().attr("id","HTLabel").css("width","80px").text("磁鏈帶Tracker");
+        var hastrackercheck =  jQuery("#STCheck").clone().attr({id:"HTCheck",checked:JSON.parse(getHTCheck())});
+        hastrackerdiv.append(hastrackerlabel).append(hastrackercheck).appendTo(main);
     }
-    //花园资源页
-    if(/http[s]?:\/\/share\.dmhy\.org\/topics\/view\/.*/.test(thisurl)){
-        //获取种子链中的base16编码hash
-        var str = jQuery("#tabs-1 >p >a[href$='torrent']").eq(0).attr("href");
-        //构成磁链
-        magnet = "magnet:?xt=urn:btih:" + str.substring(str.lastIndexOf("/")+1,str.lastIndexOf("."));
-        //获取到磁链对应的链接元素
-        var a =  jQuery("#tabs-1 >p >a[href^='magnet']").eq(0);
-        //将其文本和href均置为hash为base16编码的磁链
-        a.attr("href",magnet).text(magnet);
+    else{
+        saveAndClose();
     }
-    else if(switchy == 3){
-        //我自己画的，有意见你就帮我画一个
-        //对miobt.com中，由该脚本新增的链接添加样式，使链接有足够面积被点击，并以有明显意义的图标作为背景
-        GM_xmlhttpRequest({
+}
+function getHTCheck(){
+    var hasTracker = localStorage.getItem("hasTracker");
+    if(isNone(hasTracker)){
+         hasTracker = "false";
+         localStorage.setItem("hasTracker",hasTracker);
+     }
+    return hasTracker;
+}
+function getSettingsShortCut(){
+    var settingsSC = localStorage.getItem("settingsSC");
+    if(isNone(settingsSC)){
+         settingsSC = "esc";
+         localStorage.setItem("settingsSC",settingsSC);
+     }
+    return settingsSC;
+}
+function getSTCheck(){
+    var isShow = localStorage.getItem("isShowTorrentLink");
+    if(isNone(isShow)){
+         isShow = "true";
+         localStorage.setItem("isShowTorrentLink",isShow);
+     }
+    return isShow;
+}
+function getAppendShortCut(){
+    var appendSCKey = localStorage.getItem("append");
+     if(isNone(appendSCKey)){
+         appendSCKey = "shift+f1";
+         localStorage.setItem("append",appendSCKey);
+     }
+    return appendSCKey;
+}
+function getDeleteShortCut(){
+    var deleteSCKey = localStorage.getItem("delete");
+     if(isNone(deleteSCKey)){
+         deleteSCKey = "shift+f2";
+         localStorage.setItem("delete",deleteSCKey);
+     }
+    return deleteSCKey;
+}
+function getCopyShortCut(){
+    var copySCKey = localStorage.getItem("copy");
+     if(isNone(copySCKey)){
+         copySCKey = "shift+f4";
+         localStorage.setItem("copy",copySCKey);
+     }
+    return copySCKey;
+}
+//关闭并保存设置
+function saveAndClose(){
+    var appendSC = jQuery("#appendInput").val();
+    var deleteSC = jQuery("#deleteInput").val();
+    var copySC = jQuery("#copyInput").val();
+    var STFlag = jQuery("#STCheck:checked").length == 1?"true":"false";
+    var HTFlag = jQuery("#HTCheck:checked").length == 1?"true":"false";
+    Mousetrap.unbind(getAppendShortCut());
+    localStorage.setItem("append",appendSC);
+    Mousetrap.bind(getAppendShortCut(), addLocalStorage);
+    
+    Mousetrap.unbind(getDeleteShortCut());
+    localStorage.setItem("delete",deleteSC);
+    Mousetrap.bind(getDeleteShortCut(),clearLocalStorageAndClipboard);
+    
+    Mousetrap.unbind(getCopyShortCut());
+    localStorage.setItem("copy",copySC);
+    Mousetrap.bind(getCopyShortCut(), copyMagnet);
+    localStorage.setItem("isShowTorrentLink",STFlag);
+    localStorage.setItem("hasTracker",HTFlag);
+    
+    jQuery("#settingDiv").remove();
+}
+//mio站的磁链图标返回后调用的回调函数
+function mioAddMagnetIcon(responseDetails){
+    var imgBin = responseDetails;
+    var base64 = customBase64Encode(responseDetails.responseText);
+    var imgstr = "data:image/gif;base64," + base64;
+    jQuery("a.magnet").css({"background":"url(" + imgstr + ")","background-size":"contain","background-repeat":"no-repeat","padding-left":"15px"});
+}
+//以url,返回类型和回调函数作为参数调用的函数
+//用于不传referer请求，缺点是不会检查文件是否变更过(不会304)
+function requestNoReferer(url,accept,func){
+    GM_xmlhttpRequest({
             method: 'GET',
-            url: "https://jmnsyscripts.sinacloud.net/magnet.gif",
+            url: url,
             headers: {
                 'User-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36',
-                'Accept': 'image/gif',
+                'Accept': accept,
                 'referer':'',
             },
-            onload: function(responseDetails) {
-                var imgBin = responseDetails;
-                var base64 = customBase64Encode(responseDetails.responseText);
-                var imgstr = "data:image/gif;base64," + base64;
-                jQuery("a.magnet").css({"background":"url(" + imgstr + ")","background-size":"contain","background-repeat":"no-repeat","padding-left":"15px"});
-            },
+            onload: function(responseDetails){
+                func(responseDetails);
+            } ,
             overrideMimeType: 'text/plain; charset=x-user-defined'
         });
-    }
-});
+}
 function copyMagnet(){
     var i = 0;
     var arr = new Array("");
@@ -198,7 +327,7 @@ function copyMagnet(){
 function checkAll(){
     jQuery(".checkMagnet").each(function(){
         if(jQuery(this).get(0).checked != jQuery("#checkAll").get(0).checked){
-            jQuery(this).get(0).click()
+            jQuery(this).get(0).click();
         }
     });
 }
@@ -237,7 +366,7 @@ function addLocalStorage(){
         if(arr.length > 0){
             add = arr.join("\r\n");
             var clipbordStr = ((multiMagnet == null) || (multiMagnet == "")?"":multiMagnet + "\r\n") + add;
-            localStorage.setItem("multiMagnet",clipbordStr)
+            localStorage.setItem("multiMagnet",clipbordStr);
             GM_setClipboard(clipbordStr);
         }
         else{
@@ -299,7 +428,6 @@ function customBase64Encode (inputStr) {
                 inx+=1;
             }
         }
-
         //base64编码第一个字符为第一个字节右移两位
         encodedCharIndexes[0] = bytebuffer[0] >> 2;
         //base64编码第二个字符为第一个字节和00000011b作与运算并左移四位的结果与第二个字节右移四位的结果作并运算
@@ -321,7 +449,6 @@ function customBase64Encode (inputStr) {
             default:
                 break; // No padding - proceed
         }
-        
         for (jnx = 0;  jnx < enCharLen;  ++jnx)
             output += keyStr.charAt ( encodedCharIndexes[jnx] );
     }
