@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name             KTXP&dmhyTorrentLinkToMagnet
 // @namespace        http://KTXP&dmhyTorrentLinkToMagnet/
-// @version          3.0
+// @version          3.1
 // @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外两个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为bt.acg.gg或www.miobt.com跟极影有任何关系，只是受众有重叠
 // @match            http://bt.acg.gg/*
 // @match            http://www.miobt.com/*
@@ -30,6 +30,23 @@ jQuery().ready(function(){
     }
     //适配花园列表页
     else if(jQuery(".download-arrow[title='磁力下載']").length > 0){
+        jQuery(".jmd").hide();
+        jQuery(".jmd_base").show().addClass("jmd");
+        //今天周几
+        var nowDay = new Date().getDay();
+        var TRs = jQuery(".jmd_base >tbody> tr");
+        for(var i in TRs){
+            if(i == nowDay){
+                TRs.eq(i).addClass("today");
+            }
+            if(i % 2 == 0){
+                TRs.eq(i).addClass("even");
+            }
+            else{
+                TRs.eq(i).addClass("odd");
+            }
+        }
+        
         //修改表头
         jQuery("span.title").eq(3).parent().attr("width","6%");
         if(isShowTorrent){
@@ -53,6 +70,13 @@ jQuery().ready(function(){
         Mousetrap.bind(getDeleteShortCut(), clearLocalStorageAndClipboard);
         Mousetrap.bind(getCopyShortCut(), copyMagnet);
         Mousetrap.bind(getSettingsShortCut(), showSettingDiv);
+        
+        var pageControl = jQuery("a:contains('下一頁')");
+        for(var i in pageControl){
+            if(i >= 0){
+                addGoToPair(i,pageControl.eq(i));
+            }
+        }
     }
     //适配bt.acg.gg和miobt.com列表页
     else if(jQuery(".clear > table#listTable > tbody.tbody > tr[class^='alt'] > td > a[href^='show']").length > 0){
@@ -100,7 +124,7 @@ jQuery().ready(function(){
                 temp.attr("href",torrentLink);
                 var check = jQuery("<input/>",{type:"checkbox",class:"checkMagnet",value:magnet});
                 //把磁链的href置为16位磁链，在磁链图标后加入种子下载图标
-                var magnetArrow = jQuery(this).attr("href",magnet);
+                var magnetArrow = jQuery(this).attr("href",magnet).attr("data-tracker",tracker);
                 magnetArrow.before(check);
                 if(isShowTorrent){
                     magnetArrow.after(temp);
@@ -130,6 +154,16 @@ jQuery().ready(function(){
         });
     }
 });
+function addGoToPair(index,ele){
+    var href = ele.get(0).href;
+    var prefix = href.substring(0,href.lastIndexOf("/page/")+6);
+    var suffix = href.substring(href.lastIndexOf("?"));
+    suffix = (suffix == href?"":suffix);
+    var id = "index" + index;
+    var input = jQuery("<input/>",{type:'input',placeholder:'前往頁碼',id:id,width:'60px',height:'12px'});
+    var goto = jQuery("<a/>",{href:'javascript:var pageNum = $("#'+id+'").val();window.location.href = "'+prefix+'"+pageNum+"'+suffix+'";'}).text("前　往");
+    ele.eq(0).after(goto).after(jQuery("<span/>").text("　")).after(input).after(jQuery("<span/>").text("　"));
+}
 //dmhy站的操作图标返回后调用的回调函数
 function dmhyAddOperation(responseDetails) {
     var imgBin = responseDetails;
@@ -284,6 +318,15 @@ function saveAndClose(){
     localStorage.setItem("copy",copySC);
     Mousetrap.bind(getCopyShortCut(), copyMagnet);
     localStorage.setItem("isShowTorrentLink",STFlag);
+    jQuery(".download-arrow[title='磁力下載']").each(function(){
+        var temp = jQuery(this);
+        if('true'==HTFlag){
+            temp.attr("href",temp.attr("href")+temp.attr("data-tracker"));
+        }
+        else{
+            temp.attr("href",temp.attr("href").replace(temp.attr("data-tracker"),""));
+        }
+    });
     localStorage.setItem("hasTracker",HTFlag);
     
     jQuery("#settingDiv").remove();
@@ -299,18 +342,18 @@ function mioAddMagnetIcon(responseDetails){
 //用于不传referer请求，缺点是不会检查文件是否变更过(不会304)
 function requestNoReferer(url,accept,func){
     GM_xmlhttpRequest({
-            method: 'GET',
-            url: url,
-            headers: {
-                'User-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36',
-                'Accept': accept,
-                'referer':'',
-            },
-            onload: function(responseDetails){
-                func(responseDetails);
-            } ,
-            overrideMimeType: 'text/plain; charset=x-user-defined'
-        });
+        method: 'GET',
+        url: url,
+        headers: {
+            'User-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.101 Safari/537.36',
+            'Accept': accept,
+            'referer':'',
+        },
+        onload: function(responseDetails){
+            func(responseDetails);
+        } ,
+        overrideMimeType: 'text/plain; charset=x-user-defined'
+    });
 }
 function copyMagnet(){
     var i = 0;
