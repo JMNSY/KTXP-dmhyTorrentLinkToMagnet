@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name             KTXP&dmhyTorrentLinkToMagnet
 // @namespace        http://KTXP&dmhyTorrentLinkToMagnet/
-// @version          3.1
+// @version          3.2
 // @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外两个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为bt.acg.gg或www.miobt.com跟极影有任何关系，只是受众有重叠
 // @match            http://bt.acg.gg/*
 // @match            http://www.miobt.com/*
@@ -72,6 +72,9 @@ jQuery().ready(function(){
         Mousetrap.bind(getSettingsShortCut(), showSettingDiv);
         
         var pageControl = jQuery("a:contains('下一頁')");
+        if(pageControl.length == 0){
+            pageControl = jQuery("a:contains('上一頁')");
+        }
         for(var i in pageControl){
             if(i >= 0){
                 addGoToPair(i,pageControl.eq(i));
@@ -160,9 +163,13 @@ function addGoToPair(index,ele){
     var suffix = href.substring(href.lastIndexOf("?"));
     suffix = (suffix == href?"":suffix);
     var id = "index" + index;
-    var input = jQuery("<input/>",{type:'input',placeholder:'前往頁碼',id:id,width:'60px',height:'12px'});
-    var goto = jQuery("<a/>",{href:'javascript:var pageNum = $("#'+id+'").val();window.location.href = "'+prefix+'"+pageNum+"'+suffix+'";'}).text("前　往");
-    ele.eq(0).after(goto).after(jQuery("<span/>").text("　")).after(input).after(jQuery("<span/>").text("　"));
+    var input = jQuery("<input/>",{type:'number',min:'1',placeholder:'前往頁碼',id:id,width:'70px',height:'12px'}).on("keydown",function(event){
+        if(event.keyCode == 13){
+            eval(jQuery("#goto"+id).attr("href"));
+        }
+    });
+    var goto = jQuery("<a/>",{id:"goto"+id,href:'javascript:var pageNum = jQuery("#'+id+'").val();window.location.href = "'+prefix+'"+pageNum+"'+suffix+'";'}).text("前　往");
+    ele.eq(0).parent().append(jQuery("<span/>").text("　")).append(input).append(jQuery("<span/>").text("　")).append(goto);
 }
 //dmhy站的操作图标返回后调用的回调函数
 function dmhyAddOperation(responseDetails) {
