@@ -1,13 +1,17 @@
 // ==UserScript==
 // @name             KTXP&dmhyTorrentLinkToMagnet
 // @namespace        http://KTXP&dmhyTorrentLinkToMagnet/
-// @version          3.2
-// @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外两个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为bt.acg.gg或www.miobt.com跟极影有任何关系，只是受众有重叠
+// @version          3.4
+// @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外四个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为这四个站跟极影有任何关系，只是受众有重叠
 // @match            http://bt.acg.gg/*
 // @match            http://www.miobt.com/*
 // @match            http://miobt.com/*
 // @match            https://share.dmhy.org
 // @match            https://share.dmhy.org/topics/list*
+// @match            http://dmhy.dandanplay.com
+// @match            http://dmhy.dandanplay.com/topics/list*
+// @include          /http:\/\/(www.)?comicat.org\/.*/
+// @include          /http:\/\/(www.)?kisssub.org\/.*/
 // @require          http://code.jquery.com/jquery-1.9.0.min.js
 // @require          https://cdnjs.cloudflare.com/ajax/libs/mousetrap/1.4.6/mousetrap.min.js
 // @grant            GM_setClipboard
@@ -87,7 +91,7 @@ jQuery().ready(function(){
         if(/http[s]?:\/\/bt.acg.gg\/.*/.test(thisurl)){
             switchy = 2;
         }
-        else if(/http[s]?:\/\/(www.)?miobt.com\/.*/.test(thisurl)){
+        else if(/http[s]?:\/\/(www.)?miobt.com\/.*/.test(thisurl)||/http[s]?:\/\/(www.)?comicat.org\/.*/.test(thisurl)||/http[s]?:\/\/(www.)?kisssub.org\/.*/.test(thisurl)){
             switchy = 3;
             //我自己画的，有意见你就帮我画一个
             //对miobt.com中，由该脚本新增的链接添加样式，使链接有足够面积被点击，并以有明显意义的图标作为背景
@@ -156,6 +160,11 @@ jQuery().ready(function(){
             }
         });
     }
+    
+    var now = new Date();
+    if(now.getDate() == 26 && now.getMonth() == 5){
+        console.log("%c"+"http://girigiri.love","color:green;font-size:1.25em;");
+    }
 });
 function addGoToPair(index,ele){
     var href = ele.get(0).href;
@@ -176,7 +185,7 @@ function dmhyAddOperation(responseDetails) {
     var imgBin = responseDetails;
     var base64 = customBase64Encode(responseDetails.responseText);
     copyimg = "data:image/png;base64," + base64;
-    var copyIt = jQuery("<div/>",{id:"copySelectedMagnet",title:"多行複製"}).on("click",copyMagnet).css({
+    var copyIt = jQuery("<div/>",{id:"copySelectedMagnet",title:"多行複製",class:"controlIcon"}).on("click",copyMagnet).css({
         "background":"url(" + copyimg + ") -485px -285px",
         //   "background-size":"contain",
         "background-repeat":"no-repeat",
@@ -189,7 +198,9 @@ function dmhyAddOperation(responseDetails) {
     var addIt = copyIt.clone().css({"bottom":"195px","background":"url(" + copyimg + ") -85px -45px"}).attr({"id":"addSelectedMagnet","title":"追加磁鏈"}).on("click",addLocalStorage);
     var clearIt = copyIt.clone().css({"bottom":"160px","background":"url(" + copyimg + ") -565px -45px"}).attr({"id":"clearMagnet","title":"清空剪貼簿"}).on("click",clearLocalStorageAndClipboard);
     var settings = copyIt.clone().css({"bottom":"55px","background":"url(" + copyimg + ") -525px -45px"}).attr({"id":"settingIcon","title":"设定"}).on("click",showSettingDiv);
-    jQuery("body").append(copyIt).append(addIt).append(clearIt).append(settings);
+    if(JSON.parse(getCVCheck())){
+        jQuery("body").append(copyIt).append(addIt).append(clearIt).append(settings);
+    }
 }
 //显示设置
 function showSettingDiv(){
@@ -253,10 +264,23 @@ function showSettingDiv(){
         var hastrackerlabel = jQuery("#deleteLabel").clone().attr("id","HTLabel").css("width","80px").text("磁鏈帶Tracker");
         var hastrackercheck =  jQuery("#STCheck").clone().attr({id:"HTCheck",checked:JSON.parse(getHTCheck())});
         hastrackerdiv.append(hastrackerlabel).append(hastrackercheck).appendTo(main);
+        
+        var controlVisiblediv = jQuery("<div/>",{id:"controlVisible"}).css({"margin":"2px"});
+        var controlVisiblelabel = jQuery("#deleteLabel").clone().attr("id","CVLabel").css("width","80px").text("显示控件图标");
+        var controlVisiblecheck =  jQuery("#STCheck").clone().attr({id:"CVCheck",checked:JSON.parse(getCVCheck())});
+        controlVisiblediv.append(controlVisiblelabel).append(controlVisiblecheck).appendTo(main);
     }
     else{
         saveAndClose();
     }
+}
+function getCVCheck(){
+    var controlVisible = localStorage.getItem("controlVisible");
+    if(isNone(controlVisible)){
+         controlVisible = "true";
+         localStorage.setItem("controlVisible",controlVisible);
+     }
+    return controlVisible;
 }
 function getHTCheck(){
     var hasTracker = localStorage.getItem("hasTracker");
@@ -313,6 +337,7 @@ function saveAndClose(){
     var copySC = jQuery("#copyInput").val();
     var STFlag = jQuery("#STCheck:checked").length == 1?"true":"false";
     var HTFlag = jQuery("#HTCheck:checked").length == 1?"true":"false";
+    var CVFlag = jQuery("#CVCheck:checked").length == 1?"true":"false";
     Mousetrap.unbind(getAppendShortCut());
     localStorage.setItem("append",appendSC);
     Mousetrap.bind(getAppendShortCut(), addLocalStorage);
@@ -335,6 +360,7 @@ function saveAndClose(){
         }
     });
     localStorage.setItem("hasTracker",HTFlag);
+    localStorage.setItem("controlVisible",CVFlag);
     
     jQuery("#settingDiv").remove();
 }
