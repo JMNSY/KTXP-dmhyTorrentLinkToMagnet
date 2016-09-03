@@ -27,15 +27,24 @@ JavaScript用户脚本
 1.share.dmhy.org<br/>
 2.bt.acg.gg<br/>
 3.miobt.com<br/>
-4.dmhy.dandanplay.com<br/>
-5.comicat.org<br/>
-6.kisssub.org
+4.comicat.org<br/>
+5.kisssub.org
 
 //TODO List：<br/>
 1.以界面改动小为前提，使用户能复制多行磁链（已在dmhy实现）<br/>
 2.改进base64编码函数使之能编码汉字(我敢担保这个功能已经跟这个脚本没关系了wwwww)
 
 Change Log：
+
+2016-09-04 1:37<br/>
+1.修复了在不同的标签页上追加同一个磁链时的BUG<br/>
+2.跳转页面组件实现方式变更，从eval改为事件绑定函数（代码改动，使用上没有任何区别）<br/>
+3.优化流程，显示控件图标选项不被勾上时，不请求图片<br/>
+4.使表头磁链列的宽度随是否显示种子链的配置改变<br/>
+5.去掉对dmhy.dandanplay.com的支持，详情可以访问该站<br/>
+6.添加注释<br/>
+7.以不影响代码易读性为前提提高代码复用度<br/>
+8.去掉国际禁毒日彩蛋
 
 2016-06-20 23:23<br/>
 1.添加了3个网站的支持
