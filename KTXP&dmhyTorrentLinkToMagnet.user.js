@@ -1,17 +1,16 @@
 // ==UserScript==
 // @name             KTXP&dmhyTorrentLinkToMagnet
 // @namespace        http://KTXP&dmhyTorrentLinkToMagnet/
-// @version          3.5
-// @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，对另外四个站的列表页新增磁力链接 PS:沿用这个脚本并不是因为我认为这四个站跟极影有任何关系，只是受众有重叠
+// @version          3.7
+// @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，用于不支持btih为32个字符的磁链的下载渠道，对另外四个站的列表页新增同类的磁力链接，对dmhy和类似miobt的站点提供批量磁链复制，支持跨页复制 PS:沿用这个脚本并不是因为我认为这四个站跟极影有任何关系，只是受众有重叠
 // @match            http://bt.acg.gg/*
 // @match            http://www.miobt.com/*
 // @match            http://miobt.com/*
-// @match            https://share.dmhy.org
-// @match            https://share.dmhy.org/topics/list*
+// @include          /http(s)?:\/\/share.dmhy.org\/.*/
 // @include          /http:\/\/(www.)?comicat.org\/.*/
 // @include          /http:\/\/(www.)?kisssub.org\/.*/
-// @require          http://code.jquery.com/jquery-1.9.0.min.js
-// @require          https://cdnjs.cloudflare.com/ajax/libs/mousetrap/1.4.6/mousetrap.min.js
+// @require          https://cdn.staticfile.org/jquery/1.9.0/jquery.min.js
+// @require          https://cdn.staticfile.org/mousetrap/1.4.6/mousetrap.min.js
 // @grant            GM_setClipboard
 // @grant            GM_xmlhttpRequest
 // @connect          jmnsy.github.io
@@ -65,8 +64,6 @@ jQuery().ready(function(){
         jQuery("span.title").eq(3).before(checkall).parent();
         //对全选复选框和其他复选框监听变更事件
         jQuery("#checkAll").on("change",checkAll);
-        //对checkMagnet类的变更事件绑定全选复选框的选中变更函数
-        jQuery(".checkMagnet").on("change",checkThis);
 
         //link以dmhy的处理方式处理
         switchy = 0;
@@ -83,7 +80,7 @@ jQuery().ready(function(){
         Mousetrap.bind(getItemByDefault("append","shift+f1"), addLocalStorage);
         Mousetrap.bind(getItemByDefault("delete","shift+f2"), clearLocalStorageAndClipboard);
         Mousetrap.bind(getItemByDefault("copy","shift+f4"), copyMagnet);
-        Mousetrap.bind(getItemByDefault("settingsSC","esc"), showSettingDiv);
+        Mousetrap.bind(getItemByDefault("settingsSC","esc"), showDmhySettingDiv);
 
         //用可用的上一页下一页链接的href用来拼接跳转目标页的地址
         var pageControl = jQuery("a:contains('下一頁')");
@@ -105,10 +102,40 @@ jQuery().ready(function(){
         if(/http[s]?:\/\/bt.acg.gg\/.*/.test(thisurl)){
             //link以bt.acg.gg的处理方式处理
             switchy = 2;
+            var headTh = jQuery(".l3");
+            for(var i in headTh){
+                var newColumn = headTh.eq(i).clone();
+                newColumn.removeClass("l3").addClass("l31").css("width","65px");
+                headTh.eq(i).after(newColumn.text("磁链"));
+            }
+            //鼠标按键绑定相应的函数，按键通过函数从localStorage中获取
+            Mousetrap.stopCallback = function () {
+                return false;
+            };
+            Mousetrap.bind(getItemByDefault("append","shift+f1"), addLocalStorage);
+            Mousetrap.bind(getItemByDefault("delete","shift+f2"), clearLocalStorageAndClipboard);
+            Mousetrap.bind(getItemByDefault("copy","shift+f4"), copyMagnet);
+            Mousetrap.bind(getItemByDefault("settingsSC","esc"), showGGSettingDiv);
         }
         else if(/http[s]?:\/\/(www.)?miobt.com\/.*/.test(thisurl)||/http[s]?:\/\/(www.)?comicat.org\/.*/.test(thisurl)||/http[s]?:\/\/(www.)?kisssub.org\/.*/.test(thisurl)){
             //link以miobt系的处理方式处理
             switchy = 3;
+            var headTh = jQuery(".l3.tableHeaderOver");
+            var newColumn = headTh.clone();
+            newColumn.removeClass("l3").addClass("l31").css("width","65px");
+            var checkall = jQuery("<input/>",{type:"checkbox",id:"checkAll",title:"全选"});
+            headTh.after(newColumn.text("").append(checkall).append("磁链"));
+            //对全选复选框和其他复选框监听变更事件
+            jQuery("#checkAll").on("change",checkAll);
+            //鼠标按键绑定相应的函数，按键通过函数从localStorage中获取
+            Mousetrap.stopCallback = function () {
+                return false;
+            };
+            Mousetrap.bind(getItemByDefault("append","shift+f1"), addLocalStorage);
+            Mousetrap.bind(getItemByDefault("delete","shift+f2"), clearLocalStorageAndClipboard);
+            Mousetrap.bind(getItemByDefault("copy","shift+f4"), copyMagnet);
+            Mousetrap.bind(getItemByDefault("settingsSC","esc"), showMioSettingDiv);
+
             //我自己画的，有意见你就帮我画一个
             //对miobt.com中，由该脚本新增的链接添加样式，使链接有足够面积被点击，并以有明显意义的图标作为背景
             requestNoReferer("https://jmnsy.github.io/magnet.gif",'image/gif',mioAddMagnetIcon);
@@ -158,23 +185,31 @@ jQuery().ready(function(){
                 str = jQuery(this).attr("href").substring(5,45);
                 //构成磁链
                 magnet = "magnet:?xt=urn:btih:" + str;
+                var td = jQuery("<td/>");
+                var check = jQuery("<input/>",{type:"checkbox",class:"checkMagnet",value:magnet});
                 //新增一个图标，以链接元素包围
                 var a = jQuery("<a/>",{href:magnet,class:"magnet"});
                 var icon = jQuery("<img/>",{src:"http://bt.acg.gg/images/icon_magnet.gif"});
                 var addEle = a.append(icon);
-                //把整个元素放在资源页链接前
-                jQuery(this).before(addEle);
+                //
+                jQuery(this).parent().after(td.append(check).append(a));
             }
             else if(switchy == 3){
                 //从资源页url中切出hex编码hash
                 str = jQuery(this).attr("href").substring(5,45);
                 //构成磁链
                 magnet = "magnet:?xt=urn:btih:" + str;
-                //新增一个链接元素，插在资源页链接前
+                var td = jQuery("<td/>");
+                var check = jQuery("<input/>",{type:"checkbox",class:"checkMagnet",value:magnet});
+                //把整个元素放到后面的td中
                 var a = jQuery("<a/>",{href:magnet,class:"magnet"});
-                jQuery(this).before(a);
+                jQuery(this).parent().after(td.append(check).append(a));
             }
         });
+    }
+    if(jQuery(".checkMagnet")){
+        //对checkMagnet类的变更事件绑定全选复选框的选中变更函数
+        jQuery(".checkMagnet").on("change",checkThis);
     }
 });
 //在页面中第index个下一页或者上一页<a/>(ele)后追加用于跳转页面的组件，包括数字输入框和按钮
@@ -185,12 +220,13 @@ function addGoToPair(index,ele){
     var prefix = href.substring(0,href.lastIndexOf("/page/")+6);
     //切出页面参数(搜索参数一类)，当href不存在?时，suffix会被赋以href值
     var suffix = href.substring(href.lastIndexOf("?"));
+    var showIndex = window.location.href.replace(prefix,"").replace(suffix,"");
     //当suffix被赋以href值，赋值为空字串
     suffix = (suffix == href?"":suffix);
     //组件的部分id字串
     var id = "index" + index;
     //声明一个输入框，id为index，并绑定enter键按下事件
-    var input = jQuery("<input/>",{type:'number',min:'1',placeholder:'前往頁碼',id:id,width:'70px',height:'12px'}).on("keydown",function(event){
+    var input = jQuery("<input/>",{type:'number',min:'1',placeholder:'前往頁碼',id:id,width:'70px',height:'12px',value:showIndex}).on("keydown",function(event){
         if(event.keyCode == 13){
             //按下enter键则模拟点击旁边的前往按钮
             jQuery("#goto"+id).click();
@@ -225,82 +261,115 @@ function dmhyAddOperation(responseDetails) {
     });
     var addIt = copyIt.clone().css({"bottom":"195px","background":"url(" + copyimg + ") -85px -45px"}).attr({"id":"addSelectedMagnet","title":"追加磁鏈"}).on("click",addLocalStorage);
     var clearIt = copyIt.clone().css({"bottom":"160px","background":"url(" + copyimg + ") -565px -45px"}).attr({"id":"clearMagnet","title":"清空剪貼簿"}).on("click",clearLocalStorageAndClipboard);
-    var settings = copyIt.clone().css({"bottom":"55px","background":"url(" + copyimg + ") -525px -45px"}).attr({"id":"settingIcon","title":"设定"}).on("click",showSettingDiv);
+    var settings = copyIt.clone().css({"bottom":"55px","background":"url(" + copyimg + ") -525px -45px"}).attr({"id":"settingIcon","title":"设定"}).on("click",showDmhySettingDiv);
     jQuery("body").append(copyIt).append(addIt).append(clearIt).append(settings);
 }
-//显示设置
-function showSettingDiv(){
+//对设置界面表单元素进行设值的函数
+function setSettingValue(str){
+    if(jQuery("#settingDiv").length === 1){
+        jQuery("#appendInput").val(getItemByDefault("append","shift+f1"));
+        jQuery("#deleteInput").val(getItemByDefault("delete","shift+f2"));
+        jQuery("#copyInput").val(getItemByDefault("copy","shift+f4"));
+        jQuery("#settingsInput").val(getItemByDefault("settingsSC","esc"));
+        if(str == 'dmhy'){
+            jQuery("#STCheck").attr("checked",JSON.parse(getItemByDefault("isShowTorrentLink","true")));
+            jQuery("#HTCheck").attr("checked",JSON.parse(getItemByDefault("hasTracker","false")));
+            jQuery("#CVCheck").attr("checked",JSON.parse(getItemByDefault("controlVisible","true")));
+        }
+    }
+}
+//显示dmhy的设置界面
+function showDmhySettingDiv(){
+    showSettingDiv(getDmhySettingDiv,dmhySaveAndClose);
+    setSettingValue("dmhy");
+}
+//显示acg.gg的设置界面
+function showGGSettingDiv(){
+    showSettingDiv(getGGSettingDiv,ggSaveAndClose);
+    setSettingValue("GG");
+}
+//显示mio的设置界面
+function showMioSettingDiv(){
+    showSettingDiv(getMioSettingDiv,mioSaveAndClose);
+    setSettingValue("mio");
+}
+//显示设置，以获取设置界面html的函数以及界面关闭函数作为参数调用
+function showSettingDiv(func1,func2){
     //设置界面关闭状态时显示，显示状态时关闭
     if(jQuery("#settingDiv").length === 0){
-        //窗体和绑定关闭事件
-        var all = jQuery("<div/>",{id:"settingDiv"}).css({
-            "background":"#FFF",
-            "width":"300px",
-            "height":"200px",
-            "position":"fixed",
-            "bottom":"20px",
-            "right":"50px"});
-        all.appendTo(jQuery("body"));
-        var title = jQuery("<div/>",{id:"settingDivTitle"}).css({
-            "background":"#247",
-            "color":"#fff",
-            "width":"290px",
-            "height":"20px",
-            "position":"fixed",
-            "bottom":"195px",
-            "right":"55px"}).text("设定").appendTo(all);
-        var main = jQuery("#settingDivTitle").clone().attr("id","settingMain").css({
-            "background":"#cdf",
-            "height":"168px",
-            "color":"#000",
-            "bottom":"25px"
-        }).text("").appendTo(all);
-        var closeIcon = jQuery("<span/>").text("(X)").css({
-            "float":"right" ,
-            "margin":"2px",
-            "color":"#fff",
-            "cursor":"pointer"})
-        .on("click",saveAndClose).appendTo(title);
-
-        //配置項
-        var appenddiv = jQuery("<div/>",{id:"appendSC"}).css({"margin":"2px"});
-        var appendlabel = jQuery("<span/>").attr("id","appendLabel").css({"width":"65px","display":"inline-block"}).text("追加磁鏈:");
-        var appendinput = jQuery("<input/>",{id:"appendInput",type:"text"}).css("width","80px").val(getItemByDefault("append","shift+f1"));
-        appenddiv.append(appendlabel).append(appendinput).appendTo(main);     //多層元素必須一次添加
-
-        var deletediv = jQuery("<div/>",{id:"deleteSC"}).css({"margin":"2px"});
-        var deletelabel = jQuery("<span/>").attr("id","deleteLabel").css({"width":"65px","display":"inline-block"}).text("清空剪貼簿:");
-        var deleteinput = jQuery("<input/>",{id:"deleteInput",type:"text"}).css("width","80px").val(getItemByDefault("delete","shift+f2"));
-        deletediv.append(deletelabel).append(deleteinput).appendTo(main);
-
-        var copydiv = jQuery("<div/>",{id:"copySC"}).css({"margin":"2px"});
-        var copylabel = jQuery("#deleteLabel").clone().attr("id","copyLabel").text("多行複製");
-        var copyinput = jQuery("#deleteInput").clone().attr("id","copyInput").val(getItemByDefault("copy","shift+f4"));
-        copydiv.append(copylabel).append(copyinput).appendTo(main);
-
-        var settingsdiv = jQuery("<div/>",{id:"settingsSC"}).css({"margin":"2px"});
-        var settingslabel = jQuery("#deleteLabel").clone().attr("id","settingsLabel").text("设定");
-        var settingsinput = jQuery("#deleteInput").clone().attr("id","settingsInput").val(getItemByDefault("settingsSC","esc"));
-        settingsdiv.append(settingslabel).append(settingsinput).appendTo(main);
-
-        var showtorrentdiv = jQuery("<div/>",{id:"showTD"}).css({"margin":"2px"});
-        var showtorrentlabel = jQuery("#deleteLabel").clone().attr("id","STLabel").css("width","80px").text("顯示種子鏈");
-        var showtorrentcheck =  jQuery("#deleteInput").clone().attr({id:"STCheck",type:"checkbox",checked:JSON.parse(getItemByDefault("isShowTorrentLink","true"))});
-        showtorrentdiv.append(showtorrentlabel).append(showtorrentcheck).appendTo(main);
-
-        var hastrackerdiv = jQuery("<div/>",{id:"hasTracker"}).css({"margin":"2px"});
-        var hastrackerlabel = jQuery("#deleteLabel").clone().attr("id","HTLabel").css("width","80px").text("磁鏈帶Tracker");
-        var hastrackercheck =  jQuery("#STCheck").clone().attr({id:"HTCheck",checked:JSON.parse(getItemByDefault("hasTracker","false"))});
-        hastrackerdiv.append(hastrackerlabel).append(hastrackercheck).appendTo(main);
-
-        var controlVisiblediv = jQuery("<div/>",{id:"controlVisible"}).css({"margin":"2px"});
-        var controlVisiblelabel = jQuery("#deleteLabel").clone().attr("id","CVLabel").css("width","80px").text("显示控件图标");
-        var controlVisiblecheck =  jQuery("#STCheck").clone().attr({id:"CVCheck",checked:JSON.parse(getItemByDefault("controlVisible","true"))});
-        controlVisiblediv.append(controlVisiblelabel).append(controlVisiblecheck).appendTo(main);
+        var html = func1();
+        jQuery(html).appendTo("body");
+        jQuery("#closeSpan").on("click",func2);
     }
     else{
-        saveAndClose();
+        func2();
     }
+}
+//之前用js写html的我真是太天真了,全改成了好修改的长字符串
+//返回mio设置界面html的函数
+function getGGSettingDiv(){
+    var html = getMioSettingDiv().replace("00A1CB","1283AF");
+    return html;
+}
+//返回mio设置界面html的函数
+function getMioSettingDiv(){
+    var html =
+        '<div id="settingDiv" style="background: #ffffff; width: 200px; height: 190px; position: fixed; bottom: 320px; right: 20px;">'+
+        '   <div id="settingDivTitle" style="background: #00A1CB; color:  #ffffff; width: 190px; height: 20px; position: fixed; bottom: 485px; right: 25px;">'+
+        '       设定'+
+        '       <span id="closeSpan" style="float: right; margin: 2px; color:  #ffffff; cursor: pointer;">(X)</span>'+
+        '   </div>'+
+        '   <div id="settingMain" style="background: #f0f0f0; color: #000000; width: 190px; height: 158px; position: fixed; bottom: 325px; right: 25px;">'+
+        '       <div id="appendSC" style="margin: 2px;">'+
+        '           <span id="appendLabel" style="width: 65px; display: inline-block;">追加磁链</span>'+
+        '           <input id="appendInput" type="text" style="width: 80px;"></div>'+
+        '       <div id="deleteSC" style="margin: 2px;">'+
+        '           <span id="deleteLabel" style="width: 65px; display: inline-block;">清空剪贴板</span>'+
+        '           <input id="deleteInput" type="text" style="width: 80px;"></div>'+
+        '       <div id="copySC" style="margin: 2px;">'+
+        '           <span id="copyLabel" style="width: 65px; display: inline-block;">多行复制</span>'+
+        '           <input id="copyInput" type="text" style="width: 80px;"></div>'+
+        '       <div id="settingsSC" style="margin: 2px;">'+
+        '           <span id="settingsLabel" style="width: 65px; display: inline-block;">设定</span>'+
+        '           <input id="settingsInput" type="text" style="width: 80px;" readOnly unselectable></div>'+
+        '   </div>'+
+        '</div>'
+    ;
+    return html;
+}
+//返回dmhy设置界面html的函数，我需要一个美工给我一点建议
+function getDmhySettingDiv(){
+    var html =
+        '<div id="settingDiv" style="background: #ffffff; width: 300px; height: 200px; position: fixed; bottom: 20px; right: 50px;">'+
+        '   <div id="settingDivTitle" style="background: #224477; color:  #ffffff; width: 290px; height: 20px; position: fixed; bottom: 195px; right: 55px;">'+
+        '       设定'+
+        '       <span id="closeSpan" style="float: right; margin: 2px; color:  #ffffff; cursor: pointer;">(X)</span>'+
+        '   </div>'+
+        '   <div id="settingMain" style="background: #ccddff; color: #000; width: 290px; height: 168px; position: fixed; bottom: 25px; right: 55px;">'+
+        '       <div id="appendSC" style="margin: 2px;">'+
+        '           <span id="appendLabel" style="width: 65px; display: inline-block;">追加磁鏈:</span>'+
+        '           <input id="appendInput" type="text" style="width: 80px;"></div>'+
+        '       <div id="deleteSC" style="margin: 2px;">'+
+        '           <span id="deleteLabel" style="width: 65px; display: inline-block;">清空剪貼簿:</span>'+
+        '           <input id="deleteInput" type="text" style="width: 80px;"></div>'+
+        '       <div id="copySC" style="margin: 2px;">'+
+        '           <span id="copyLabel" style="width: 65px; display: inline-block;">多行複製</span>'+
+        '           <input id="copyInput" type="text" style="width: 80px;"></div>'+
+        '       <div id="settingsSC" style="margin: 2px;">'+
+        '           <span id="settingsLabel" style="width: 65px; display: inline-block;">设定</span>'+
+        '           <input id="settingsInput" type="text" style="width: 80px;" readOnly unselectable></div>'+
+        '       <div id="showTD" style="margin: 2px;">'+
+        '           <span id="STLabel" style="width: 80px; display: inline-block;">顯示種子鏈</span>'+
+        '           <input id="STCheck" type="checkbox" style="width: 80px;" value="shift+f2"></div>'+
+        '       <div id="hasTracker" style="margin: 2px;">'+
+        '           <span id="HTLabel" style="width: 80px; display: inline-block;">磁鏈帶Tracker</span>'+
+        '           <input id="HTCheck" type="checkbox" style="width: 80px;" value="shift+f2"></div>'+
+        '       <div id="controlVisible" style="margin: 2px;">'+
+        '           <span id="CVLabel" style="width: 80px; display: inline-block;">显示控件图标</span>'+
+        '           <input id="CVCheck" type="checkbox" style="width: 80px;" value="shift+f2"></div>'+
+        '   </div>'+
+        '</div>';
+    return html;
 }
 //从localStorage中获取name对应的值，不存在时设为defaultValue并返回defaultValue的值
 function getItemByDefault(name,defaultValue){
@@ -311,17 +380,14 @@ function getItemByDefault(name,defaultValue){
     }
     return item;
 }
-
-//关闭并保存设置
-function saveAndClose(){
+//快捷键配置的读取和保存，以及新设定快捷键的事件绑定
+function shotcutSave(){
     //获取设置参数
     var appendSC = jQuery("#appendInput").val();
     var deleteSC = jQuery("#deleteInput").val();
     var copySC = jQuery("#copyInput").val();
-    var STFlag = jQuery("#STCheck:checked").length == 1?"true":"false";
-    var HTFlag = jQuery("#HTCheck:checked").length == 1?"true":"false";
-    var CVFlag = jQuery("#CVCheck:checked").length == 1?"true":"false";
-    //保存设置到localStorage，重新绑定键盘按键事件
+    var settingsSC = jQuery("#settingsInput").val();
+     //保存设置到localStorage，重新绑定键盘按键事件
     Mousetrap.unbind(getItemByDefault("append","shift+f1"));
     localStorage.setItem("append",appendSC);
     Mousetrap.bind(getItemByDefault("append","shift+f1"), addLocalStorage);
@@ -333,6 +399,35 @@ function saveAndClose(){
     Mousetrap.unbind(getItemByDefault("copy","shift+f4"));
     localStorage.setItem("copy",copySC);
     Mousetrap.bind(getItemByDefault("copy","shift+f4"), copyMagnet);
+
+    Mousetrap.unbind(getItemByDefault("settingsSC","esc"));
+    localStorage.setItem("settingsSC",settingsSC);
+}
+//关闭并保存mio设置
+function mioSaveAndClose(){
+    shotcutSave();
+    //设置界面的显示逻辑因站点变化而变化
+    Mousetrap.bind(getItemByDefault("settingsSC","esc"), showMioSettingDiv);
+    //从dom中移除设置小窗
+    jQuery("#settingDiv").remove();
+}
+//关闭并保存mio设置
+function ggSaveAndClose(){
+    shotcutSave();
+    //设置界面的显示逻辑因站点变化而变化
+    Mousetrap.bind(getItemByDefault("settingsSC","esc"), showGGSettingDiv);
+    //从dom中移除设置小窗
+    jQuery("#settingDiv").remove();
+}
+//关闭并保存dmhy设置
+function dmhySaveAndClose(){
+    shotcutSave();
+    var STFlag = jQuery("#STCheck:checked").length == 1?"true":"false";
+    var HTFlag = jQuery("#HTCheck:checked").length == 1?"true":"false";
+    var CVFlag = jQuery("#CVCheck:checked").length == 1?"true":"false";
+
+    Mousetrap.bind(getItemByDefault("settingsSC","esc"), showDmhySettingDiv);
+
     localStorage.setItem("isShowTorrentLink",STFlag);
     //遍历所有磁链箭头
     //由于页面ready的时候就在处理磁力链的时候获得tracker并保存在磁链箭头a元素的data-tracker属性中，所以在设置保存的时候就可以处理，立即生效
@@ -438,13 +533,13 @@ function addLocalStorage(){
     var i = 0;
     var arr = [];
     //多行磁链
-    var multiMagnet = localStorage.getItem("multiMagnet");
+    var multiMagnet = localStorage.getItem("multiMagnet")==null?"":localStorage.getItem("multiMagnet");
     //对当前勾选的复选框
     jQuery(".checkMagnet:checked").each(function(){
         //获取复选框元素的value，每个元素的value都是一条磁链
         var thisMagnet = jQuery(this).val();
-        //如果页面变量中不存在这条磁链对应的值，防重
-        if( localMap[thisMagnet] === undefined){
+        //如果页面变量和本地存储中都不存在这条磁链对应的值，防重
+        if( localMap[thisMagnet] === undefined && multiMagnet!=null && multiMagnet.indexOf(thisMagnet)==-1){
             //这条磁链插入数组
             arr[i] = thisMagnet;
             //并把页面变量中磁链对应的值设为true
@@ -480,21 +575,31 @@ function clearLocalStorageAndClipboard(){
 }
 //简单来说就是base32翻译成base2，再翻译成base16
 function base32ToHex(str){
-	if(str.length % 8 !== 0){
-		return null;
-	}
-	str = str.toLowerCase();
-	var b32 = {'a':'00000','b':'00001','c':'00010','d':'00011','e':'00100','f':'00101','g':'00110','h':'00111','i':'01000','j':'01001','k':'01010','l':'01011','m':'01100','n':'01101','o':'01110','p':'01111','q':'10000','r':'10001','s':'10010','t':'10011','u':'10100','v':'10101','w':'10110','x':'10111','y':'11000','z':'11001','2':'11010','3':'11011','4':'11100','5':'11101','6':'11110','7':'11111'};
-	var b16 = {'0000':'0','0001':'1','0010':'2','0011':'3','0100':'4','0101':'5','0110':'6','0111':'7','1000':'8','1001':'9','1010':'a','1011':'b','1100':'c','1101':'d','1110':'e','1111':'f'};
-	var bin = "";
-	var returnStr = "";
-	for(var i = 0;i < str.length;i++){
-		bin += b32[str.substring(i,i+1)];
-	}
-	for(var i = 0;i < bin.length;i+=4){
-		returnStr += b16[bin.substring(i,i+4)];
-	}
-	return returnStr;
+    if(str.length % 8 !== 0){
+        return null;
+    }
+    str = str.toLowerCase();
+    var b32 = {'a':'00000','b':'00001','c':'00010','d':'00011',
+               'e':'00100','f':'00101','g':'00110','h':'00111',
+               'i':'01000','j':'01001','k':'01010','l':'01011',
+               'm':'01100','n':'01101','o':'01110','p':'01111',
+               'q':'10000','r':'10001','s':'10010','t':'10011',
+               'u':'10100','v':'10101','w':'10110','x':'10111',
+               'y':'11000','z':'11001','2':'11010','3':'11011',
+               '4':'11100','5':'11101','6':'11110','7':'11111'};
+    var b16 = {'0000':'0','0001':'1','0010':'2','0011':'3',
+               '0100':'4','0101':'5','0110':'6','0111':'7','1000':'8',
+               '1001':'9','1010':'a','1011':'b','1100':'c','1101':'d',
+               '1110':'e','1111':'f'};
+    var bin = "";
+    var returnStr = "";
+    for(var i = 0;i < str.length;i++){
+        bin += b32[str.substring(i,i+1)];
+    }
+    for(var i = 0;i < bin.length;i+=4){
+        returnStr += b16[bin.substring(i,i+4)];
+    }
+    return returnStr;
 }
 function customBase64Encode (inputStr) {
     var
