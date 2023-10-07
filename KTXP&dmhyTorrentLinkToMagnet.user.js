@@ -1,9 +1,8 @@
 // ==UserScript==
 // @name             KTXP&dmhyTorrentLinkToMagnet
 // @namespace        http://KTXP&dmhyTorrentLinkToMagnet/
-// @version          3.11
+// @version          3.12
 // @description      将dmhy的超长磁链换成btih为40个字符长度的磁链，用于不支持btih为32个字符的磁链的下载渠道，对另外四个站的列表页新增同类的磁力链接，对dmhy和类似miobt的站点提供批量磁链复制，支持跨页复制 PS:沿用这个脚本并不是因为我认为这四个站跟极影有任何关系，只是受众有重叠
-// @match            http://bt.acg.gg/*
 // @match            http://www.miobt.com/*
 // @match            http://miobt.com/*
 // @match            http://share.dmhy.org/*
@@ -60,7 +59,7 @@ function doChange(){
     else if(jQuery(".jmd").length > 0 && jQuery(".jmd_base").length > 0){
         //对平时显示的节目单进行隐藏
         jQuery(".jmd").hide();
-        //显示平时隐藏的全周节目单，，并加上平时节目单的class，用于配合原本样式和可能存在的事件绑定
+        //显示平时隐藏的全周节目单，并加上平时节目单的class，用于配合原本样式和可能存在的事件绑定
         jQuery(".jmd_base").show().addClass("jmd");
         //今天周几，用于节目单中的标黄强调
         var nowDay = new Date().getDay();
@@ -137,7 +136,8 @@ function doChange(){
             mutations.forEach(function(mutation) {
                 // 判断新添加的节点是否是动态创建的div元素
                 if (mutation.addedNodes[0] && mutation.addedNodes[0].tagName && mutation.addedNodes[0].tagName.toLowerCase() === "tbody") {
-                    doChange();
+                    debounceFunction = debounceFunction === undefined?debounce(doChange,100,false):debounceFunction;
+                    debounceFunction()
                 }
             });
         });
@@ -277,8 +277,11 @@ function doChange(){
             else if (switchy === 0){
                 //复制一个磁链图标并改造为种子下载图标
                 temp = jQuery(this).clone().removeClass("arrow-magnet").addClass("arrow-torrent").attr("title","種子下載");
+                if( jQuery(this).data("srcMagnet") == null){
+                    jQuery(this).data("srcMagnet",jQuery(this).attr("href"))
+                }
                 //获得当前资源磁链
-                str = jQuery(this).attr("href");
+                str = jQuery(this).data("srcMagnet");
                 //获得当前资源发布日期时间
                 var datetime = jQuery(this).parent().parent().children().eq(0).children().eq(0).text();
                 //获得当前资源发布日期
@@ -286,6 +289,10 @@ function doChange(){
                 var tracker = str.substring(str.indexOf("&"));
                 //获得当前磁链的base32编码hash
                 var b32 = str.split("&")[0].substring(20,52);
+                if(b32 == null){
+                    debounceFunction();
+                    return false;
+                }
                 //解码后编码为HEX
                 var b16 = base32ToHex(b32);
                 //构成磁链
@@ -432,6 +439,7 @@ function setSettingValue(str){
         jQuery("#deleteInput").val(getItemByDefault("delete","shift+f2"));
         jQuery("#copyInput").val(getItemByDefault("copy","shift+f4"));
         jQuery("#settingsInput").val(getItemByDefault("settingsSC","esc"));
+        jQuery("#CFCheck").attr("checked",JSON.parse(getItemByDefault("copyNoConfirm","false")));
         if(str == 'mikan' || str == 'dmhy'){
             jQuery("#TRCheck").attr("checked",JSON.parse(getItemByDefault("copyTorrent","false")));
             jQuery("#CVCheck").attr("checked",JSON.parse(getItemByDefault("controlVisible","true")));
@@ -511,6 +519,9 @@ function getMioSettingDiv(){
         '       <div id="settingsSC" style="margin: 2px;">'+
         '           <span id="settingsLabel" style="width: 65px; display: inline-block;">设定</span>'+
         '           <input id="settingsInput" type="text" style="width: 80px;" readOnly unselectable></div>'+
+        '       <div id="confirmTD" style="margin: 2px;">'+
+        '           <span id="CFLabel" style="width: 80px; display: inline-block;">复制无需确认</span>'+
+        '           <input id="CFCheck" type="checkbox" style="width: 80px;" /></div>'+
         '   </div>'+
         '</div>'
     ;
@@ -519,12 +530,12 @@ function getMioSettingDiv(){
 //返回dmhy设置界面html的函数，我需要一个美工给我一点建议
 function getDmhySettingDiv(){
     var html =
-        '<div id="settingDiv" style="background: #ffffff; width: 300px; height: 200px; position: fixed; bottom: 20px; right: 50px;">'+
-        '   <div id="settingDivTitle" style="background: #224477; color:  #ffffff; width: 290px; height: 20px; position: fixed; bottom: 195px; right: 55px;">'+
+        '<div id="settingDiv" style="background: #ffffff; width: 300px; height: 220px; position: fixed; bottom: 20px; right: 50px;">'+
+        '   <div id="settingDivTitle" style="background: #224477; color:  #ffffff; width: 290px; height: 20px; position: fixed; bottom: 215px; right: 55px;">'+
         '       设定'+
         '       <span id="closeSpan" style="float: right; margin: 2px; color:  #ffffff; cursor: pointer;">(X)</span>'+
         '   </div>'+
-        '   <div id="settingMain" style="background: #ccddff; color: #000; width: 290px; height: 168px; position: fixed; bottom: 25px; right: 55px;">'+
+        '   <div id="settingMain" style="background: #ccddff; color: #000; width: 290px; height: 188px; position: fixed; bottom: 25px; right: 55px;">'+
         '       <div id="appendSC" style="margin: 2px;">'+
         '           <span id="appendLabel" style="width: 65px; display: inline-block;">追加磁鏈:</span>'+
         '           <input id="appendInput" type="text" style="width: 80px;"></div>'+
@@ -543,6 +554,9 @@ function getDmhySettingDiv(){
         '       <div id="copyTD" style="margin: 2px;">'+
         '           <span id="TRLabel" style="width: 80px; display: inline-block;">只複製種子鏈</span>'+
         '           <input id="TRCheck" type="checkbox" style="width: 80px;" value="shift+f2"></div>'+
+        '       <div id="confirmTD" style="margin: 2px;">'+
+        '           <span id="CFLabel" style="width: 80px; display: inline-block;">複製無需確認</span>'+
+        '           <input id="CFCheck" type="checkbox" style="width: 80px;" value="shift+f2"></div>'+
         '       <div id="hasTracker" style="margin: 2px;">'+
         '           <span id="HTLabel" style="width: 80px; display: inline-block;">磁鏈帶Tracker</span>'+
         '           <input id="HTCheck" type="checkbox" style="width: 80px;" value="shift+f2"></div>'+
@@ -556,12 +570,12 @@ function getDmhySettingDiv(){
 //返回mikan设置界面html的函数，我需要一个美工给我一点建议
 function getMikanSettingDiv(){
     var html =
-        '<div id="settingDiv" style="background: #ffffff; width: 300px; height: 200px; position: fixed; bottom: 20px; right: 50px;">'+
-        '   <div id="settingDivTitle" style="background: #47c1c5; color:  #ffffff; width: 290px; height: 20px; position: fixed; bottom: 195px; right: 55px;">'+
+        '<div id="settingDiv" style="background: #ffffff; width: 300px; height: 220px; position: fixed; bottom: 20px; right: 50px;">'+
+        '   <div id="settingDivTitle" style="background: #47c1c5; color:  #ffffff; width: 290px; height: 20px; position: fixed; bottom: 215px; right: 55px;">'+
         '       设定'+
         '       <span id="closeSpan" style="float: right; margin: 2px; color:  #ffffff; cursor: pointer;">(X)</span>'+
         '   </div>'+
-        '   <div id="settingMain" style="background: #d8f2f3; color: #000; width: 290px; height: 168px; position: fixed; bottom: 25px; right: 55px;">'+
+        '   <div id="settingMain" style="background: #d8f2f3; color: #000; width: 290px; height: 188px; position: fixed; bottom: 25px; right: 55px;">'+
         '       <div id="appendSC" style="margin: 2px;">'+
         '           <span id="appendLabel" style="width: 65px; display: inline-block;">追加磁链:</span>'+
         '           <input id="appendInput" type="text" style="width: 80px;"></div>'+
@@ -577,6 +591,9 @@ function getMikanSettingDiv(){
         '       <div id="copyTD" style="margin: 2px;">'+
         '           <span id="TRLabel" style="width: 80px; display: inline-block;">只复制种子链</span>'+
         '           <input id="TRCheck" type="checkbox" style="width: 80px;" ></div>'+
+        '       <div id="confirmTD" style="margin: 2px;">'+
+        '           <span id="CFLabel" style="width: 80px; display: inline-block;">复制无需确认</span>'+
+        '           <input id="CFCheck" type="checkbox" style="width: 80px;" ></div>'+
         '       <div id="controlVisible" style="margin: 2px;">'+
         '           <span id="CVLabel" style="width: 80px; display: inline-block;">显示控件图标</span>'+
         '           <input id="CVCheck" type="checkbox" style="width: 80px;"></div>'+
@@ -621,6 +638,8 @@ function mioSaveAndClose(){
     shotcutSave();
     //设置界面的显示逻辑因站点变化而变化
     Mousetrap.bind(getItemByDefault("settingsSC","esc"), showMioSettingDiv);
+    var CFFlag = jQuery("#CFCheck:checked").length == 1?"true":"false";
+    localStorage.setItem("copyNoConfirm",CFFlag);
     //从dom中移除设置小窗
     jQuery("#settingDiv").remove();
 }
@@ -639,6 +658,7 @@ function dmhySaveAndClose(){
     var HTFlag = jQuery("#HTCheck:checked").length == 1?"true":"false";
     var CVFlag = jQuery("#CVCheck:checked").length == 1?"true":"false";
     var TRFlag = jQuery("#TRCheck:checked").length == 1?"true":"false";
+    var CFFlag = jQuery("#CFCheck:checked").length == 1?"true":"false";
 
     Mousetrap.bind(getItemByDefault("settingsSC","esc"), showDmhySettingDiv);
 
@@ -677,6 +697,7 @@ function dmhySaveAndClose(){
     }
     localStorage.setItem("hasTracker",HTFlag);
     localStorage.setItem("copyTorrent",TRFlag);
+    localStorage.setItem("copyNoConfirm",CFFlag);
     localStorage.setItem("controlVisible",CVFlag);
     //从dom中移除设置小窗
     jQuery("#settingDiv").remove();
@@ -686,6 +707,7 @@ function mikanSaveAndClose(){
     shotcutSave();
     var CVFlag = jQuery("#CVCheck:checked").length == 1?"true":"false";
     var TRFlag = jQuery("#TRCheck:checked").length == 1?"true":"false";
+    var CFFlag = jQuery("#CFCheck:checked").length == 1?"true":"false";
 
     Mousetrap.bind(getItemByDefault("settingsSC","esc"), showMikanSettingDiv);
 
@@ -714,6 +736,7 @@ function mikanSaveAndClose(){
         jQuery(".controlIcon").remove();
     }
     localStorage.setItem("copyTorrent",TRFlag);
+    localStorage.setItem("copyNoConfirm",CFFlag);
     localStorage.setItem("controlVisible",CVFlag);
     //从dom中移除设置小窗
     jQuery("#settingDiv").remove();
@@ -755,7 +778,7 @@ function copyMagnet(){
     //把数组以换行回车连接为一个字符串
     var multiMagnet = arr.join("\r\n");
     //弹出确认对话框，用户选择积极选项时把字符串放入剪贴板
-    if(confirm(confirmText[0])){
+    if(JSON.parse(getItemByDefault("copyNoConfirm","false")) || confirm(confirmText[0])){
         GM_setClipboard(multiMagnet);
     }
 }
@@ -806,7 +829,7 @@ function addLocalStorage(){
         }
     });
     var add = "";
-    if(confirm(confirmText[1])){
+    if(JSON.parse(getItemByDefault("copyNoConfirm","false")) || confirm(confirmText[1])){
         //对所有不重复的磁链
         if(arr.length > 0){
             //用回车连接成一个字符串
@@ -929,8 +952,7 @@ function debounce(func, wait, immediate) {
     };
 }
 //update log:
-//1.为dmhy,miobt系适配自动翻页工具(特指东方永页机,其余未测试)，acg.gg在编写过程中无法访问
-//2.初步改为js严格模式
-//3.增加支持蜜柑计划，其中search页面实际返回了全部数据，但处理时仅处理当前可见数据，并且翻页时清空勾选状态
-//4.修改确认提示框的文本
+//1.修复与东方永页机同时使用导致的转换问题
+//2.删除bt.acg.gg支持
+//3.增加复制不弹确认的设置，清除依旧需要确认
 })();
